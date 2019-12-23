@@ -143,13 +143,22 @@ map.on('load', function() {
 
 map.on('click', function(e) {
   
+  if(map.getLayer('nearest-target')){
+    map.removeLayer('nearest-target');
+  }
+  
   //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
   //Mapboxの map.queryRenderedFeaturesで得られたものをそのまま載せるだけではダメなようである。
   //http://turfjs.org/docs/#nearestPoint にあるように、turf.point/turf.featureCollectionで変換が必要みたい。
   var targetsQuery = map.queryRenderedFeatures({ layers: ['gsibv-vectortile-layer-2566'] }); //郵便局を取得
   var targetsList = new Array;
-  for(var i in targetsQuery ){
-    targetsList.push( turf.point( targetsQuery[i].geometry.coordinates ) )
+  
+  if(targetsQuery.length > 0){
+    for(var i in targetsQuery ){
+      targetsList.push( turf.point( targetsQuery[i].geometry.coordinates ) )
+    }
+  }else{
+    return;
   }
   
   var targetFeatures = turf.featureCollection(targetsList);
@@ -168,10 +177,6 @@ map.on('click', function(e) {
         nearestTarget
       ]
     });
-    
-    if(map.getLayer('nearest-target')){
-      map.removeLayer('nearest-target');
-    }
     
     map.addLayer({
       id: 'nearest-target',
