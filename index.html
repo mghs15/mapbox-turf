@@ -113,7 +113,7 @@ map.addControl(new mapboxgl.ScaleControl() );
 var popup = new mapboxgl.Popup();
 
 map.on('click', function(e) {
-  var features = map.queryRenderedFeatures(e.point, { layers: ['gsibv-vectortile-layer-2566'});
+  var features = map.queryRenderedFeatures(e.point, { layers: ['gsibv-vectortile-layer-2566']});
   if (!features.length) {
     popup.remove();
     return;
@@ -169,7 +169,9 @@ map.on('click', function(e) {
       ]
     });
     
-    map.removeLayer('nearest-target');
+    if(map.getLayer('nearest-target')){
+      map.removeLayer('nearest-target');
+    }
     
     map.addLayer({
       id: 'nearest-target',
