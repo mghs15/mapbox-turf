@@ -155,7 +155,7 @@ map.on('click', function(e) {
   
   if(targetsQuery.length > 0){
     for(var i in targetsQuery ){
-      targetsList.push( turf.point( targetsQuery[i].geometry.coordinates ) )
+      targetsList.push( turf.point( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) )
     }
   }else{
     return;
