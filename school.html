@@ -48,7 +48,7 @@ map.addControl(new mapboxgl.ScaleControl() );
 var popup = new mapboxgl.Popup();
 
 map.on('click', function(e) {
-  var features = map.queryRenderedFeatures(e.point, { layers: ['gsibv-vectortile-layer-2566']});
+  var features = map.queryRenderedFeatures(e.point, { layers: ['gsibv-vectortile-layer-2558','gsibv-vectortile-layer-2559','gsibv-vectortile-layer-2560']});
   if (!features.length) {
     popup.remove();
     return;
@@ -85,8 +85,10 @@ map.on('click', function(e) {
   //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
   //Mapboxの map.queryRenderedFeaturesで得られたものをそのまま載せるだけではダメなようである。
   //http://turfjs.org/docs/#nearestPoint にあるように、turf.point/turf.featureCollectionで変換が必要みたい。
-  var targetsQuery = map.queryRenderedFeatures({ layers: ['gsibv-vectortile-layer-2566'] }); //郵便局を取得
+  var targetsQuery = map.queryRenderedFeatures({ layers: ['gsibv-vectortile-layer-2558','gsibv-vectortile-layer-2559','gsibv-vectortile-layer-2560'] }); //郵便局を取得
   var targetsList = new Array;
+  
+//  console.log( targetsQuery );
   
   if(targetsQuery.length > 0){
     for(var i in targetsQuery ){
@@ -100,8 +102,8 @@ map.on('click', function(e) {
   
   var clickPoints = turf.point([ e.lngLat.lng, e.lngLat.lat ]);
  
-  console.log("クリックポイント");
-  console.log(e.lngLat);
+//  console.log("クリックポイント");
+//  console.log(e.lngLat);
   
   var nearestTarget = turf.nearest(clickPoints, targetFeatures);
 
@@ -119,9 +121,15 @@ map.on('click', function(e) {
       source: 'nearest-target',
       paint: {
         'circle-radius': 20,
-        'circle-color': '#FFDDCC'
+        'circle-color': [
+          'case', 
+          ['==', ['get', 'ftCode'], 3212], '#FFCCCC',
+          ['==', ['get', 'ftCode'], 3213], '#CCFFCC',
+          ['==', ['get', 'ftCode'], 3214], '#CCCCFF',
+          '#CCCCCC'
+        ]
       }
-    }, 'gsibv-vectortile-layer-2566');
+    }, 'gsibv-vectortile-layer-2558');
   }else{
     console.log("error?")
   }
