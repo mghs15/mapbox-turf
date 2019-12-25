@@ -154,8 +154,10 @@ map.on('click', function(e) {
 
   if(targetsQuery.length > 0){
     for(var i in targetsQuery ){
-      resultTarget.push( turf.centroid( turf.polygon( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) ) );
-      targetsList.push( turf.polygon( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) );
+      if(targetsQuery[i].geometry.type == "Polygon"){
+        resultTarget.push( turf.centroid( turf.polygon( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) ) );
+        targetsList.push( turf.polygon( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) );
+      }
     }
   }else{
     return;
@@ -191,10 +193,9 @@ map.on('click', function(e) {
     }, 'gsibv-vectortile-layer-2816');
 
     //centroid points in bbox
-    map.getSource('result-target-bbox').setData({
-      type: 'FeatureCollection',
-      features: resultTargetBbox
-    });
+    map.getSource('result-target-bbox').setData(
+      resultTargetBbox
+    );
     map.addLayer({
       id: 'result-target-bbox',
       type: 'symbol',
