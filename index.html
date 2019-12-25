@@ -103,7 +103,7 @@ map.on('click', function(e) {
   console.log("クリックポイント");
   console.log(e.lngLat);
   
-  var nearestTarget = turf.nearest(clickPoints, targetFeatures);
+  var nearestTarget = turf.nearestPoint(clickPoints, targetFeatures);
 
   if (nearestTarget !== null) {
     map.getSource('nearest-target').setData({

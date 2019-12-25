@@ -6,7 +6,7 @@
 <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
 <link href='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css' rel='stylesheet' />
 <script src='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js'></script>
-<script src='https://api.mapbox.com/mapbox.js/plugins/turf/v3.0.11/turf.min.js'></script>
+<script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
 <script src='./fill-pattern-image.js'></script>
 <style>
 body { margin:0; padding:0; }
@@ -63,10 +63,20 @@ map.on('click', function(e) {
 });
 
 
-//Turf.jsでクリック地点に一番近い郵便局を強調表示する。
 
+//事前にデータソースを準備しておく
+//データソースのデータを入れ替えていくほうがよさそう（そうしないと、データソースの重複エラーが出る。）
 map.on('load', function() {
+  //クリック地点に一番近い学校
   map.addSource('nearest-target', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+  //ボロノイ図
+  map.addSource('voronoi-target', {
     type: 'geojson',
     data: {
       type: 'FeatureCollection',
@@ -75,11 +85,15 @@ map.on('load', function() {
   });
 });
 
+//Turf.jsでクリック地点に一番近い学校を強調表示する。
 
 map.on('click', function(e) {
   
   if(map.getLayer('nearest-target')){
     map.removeLayer('nearest-target');
+  }
+  if(map.getLayer('voronoi-target')){
+    map.removeLayer('voronoi-target');
   }
   
   //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
@@ -105,15 +119,12 @@ map.on('click', function(e) {
 //  console.log("クリックポイント");
 //  console.log(e.lngLat);
   
-  var nearestTarget = turf.nearest(clickPoints, targetFeatures);
-
+  var nearestTarget = turf.nearestPoint(clickPoints, targetFeatures);
+  
   if (nearestTarget !== null) {
-    map.getSource('nearest-target').setData({
-      type: 'FeatureCollection',
-      features: [
-        nearestTarget
-      ]
-    });
+    map.getSource('nearest-target').setData(
+      nearestTarget
+    );
     
     map.addLayer({
       id: 'nearest-target',
@@ -133,6 +144,38 @@ map.on('click', function(e) {
   }else{
     console.log("error?")
   }
+  
+  
+  //ボロノイ
+  var map_bbox = map.getBounds();
+  
+  var options = {
+    bbox: [map_bbox._sw.lng, map_bbox._sw.lat, map_bbox._ne.lng, map_bbox._ne.lat]
+  };
+  
+  var resultTarget = turf.voronoi(targetFeatures, options);
+  
+  if (resultTarget !== null) {
+    map.getSource('voronoi-target').setData(
+      resultTarget
+    );
+    
+    map.addLayer({
+      id: 'voronoi-target',
+      type: 'fill',
+      source: 'voronoi-target',
+      layout: {},
+      paint: {
+        'fill-opacity': 0.3,
+        'fill-color': '#FFDDDD',
+        'fill-outline-color': '#FF0000'
+      }
+    }, 'gsibv-vectortile-layer-2558');
+  }else{
+    console.log("error?")
+  }
+  
+  
 });
 
 

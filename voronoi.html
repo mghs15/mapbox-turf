@@ -51,6 +51,12 @@ map.addControl(new mapboxgl.ScaleControl() );
 var popup = new mapboxgl.Popup();
 
 map.on('click', function(e) {
+  
+  if(map.getLayer('result-target')){
+    map.removeLayer('result-target');
+  }
+  
+
   var features = map.queryRenderedFeatures(e.point, { layers: ['gsibv-vectortile-layer-2566']});
   if (!features.length) {
     popup.remove();

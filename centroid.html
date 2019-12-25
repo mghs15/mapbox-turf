@@ -111,14 +111,6 @@ map.on('click', function(e) {
     map.removeLayer('bbox');
   }
   
-  //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
-  //Mapboxの map.queryRenderedFeaturesで得られたものをそのまま載せるだけではダメなようである。
-  //http://turfjs.org/docs/#nearestPoint にあるように、turf.point/turf.featureCollectionで変換が必要みたい。
-  var targetsQuery = map.queryRenderedFeatures({ layers: ['gsibv-vectortile-layer-2152'] }); //目的のレイヤIDでレンダリングされる地物を取得
-  var targetsList = new Array;
-  
-  console.log(targetsQuery);
-  
   /*
   if(targetsQuery.length > 0){
     for(var i in targetsQuery ){
@@ -134,7 +126,39 @@ map.on('click', function(e) {
  
   console.log("クリックポイント");
   console.log(e.lngLat);
-  */
+  */  
+  
+  
+  //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
+  //Mapboxの map.queryRenderedFeaturesで得られたものをそのまま載せるだけではダメなようである。
+  //http://turfjs.org/docs/#nearestPoint にあるように、turf.point/turf.featureCollectionで変換が必要みたい。
+  var targetsQuery = map.queryRenderedFeatures({ layers: ['gsibv-vectortile-layer-2152'] }); //目的のレイヤIDでレンダリングされる地物を取得
+  var targetsList = new Array;
+  
+  console.log(targetsQuery);
+  
+  
+  //Centroid
+  
+  var resultTarget = new Array;
+
+  if(targetsQuery.length > 0){
+    for(var i in targetsQuery ){
+      if(targetsQuery[i].geometry.type == "Polygon"){
+        resultTarget.push( turf.centroid( turf.polygon( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) ) );
+        targetsList.push( turf.polygon( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) );
+        //ここで得られるのは配列なので、最終的にどこかでFeatureCollectionにしてあげる必要がある。
+      }
+    }
+  }else{
+    return;
+  }
+  
+  var resultTargetCollection = turf.featureCollection(resultTarget);
+
+  console.log(resultTargetCollection);
+  console.log(resultTargetCollection.features.length);  
+  
   
   
   //bbox
@@ -148,29 +172,13 @@ map.on('click', function(e) {
   console.log(bbox_poly);
   
   
-  //Centroid
-  
-  var resultTarget = new Array;
-
-  if(targetsQuery.length > 0){
-    for(var i in targetsQuery ){
-      if(targetsQuery[i].geometry.type == "Polygon"){
-        resultTarget.push( turf.centroid( turf.polygon( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) ) );
-        targetsList.push( turf.polygon( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) );
-      }
-    }
-  }else{
-    return;
-  }
-
-  console.log(resultTarget);
-  console.log(resultTarget.length);
-  
   
   //clip
-  var resultTargetBbox = turf.pointsWithinPolygon( turf.featureCollection(resultTarget), bbox_poly );
-  // input "points" の調整が必要
+  var resultTargetBbox = turf.pointsWithinPolygon( resultTargetCollection , bbox_poly );
+
   console.log( resultTargetBbox );
+  console.log( resultTargetBbox.features.length );
+  
   
   
   if (resultTarget !== null) {
@@ -184,8 +192,8 @@ map.on('click', function(e) {
       type: 'symbol',
       source: 'result-target',
       layout: {
-        "icon-image":"人口50万人未満-500",
-        "icon-size": 0.2,
+        "icon-image":"水深-20",
+        "icon-size": 1,
         "icon-allow-overlap": true
       },
       paint: {
