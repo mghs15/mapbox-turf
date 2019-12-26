@@ -24,6 +24,12 @@ The example use case of turf js on mapbox gl js using gsimaps vector according t
 * centroid.html
   - 建物の各ポリゴンデータから代表点を取得。Turf.jsのクリッピング機能（）を利用し、代表点が表示画面内に入っているか判定し、入っているものとはみ出しているものを分別して表示。
   - `turf.centroid` `turf.bboxPolygon` `pointsWithinPolygon`
+* nearestPointOnLine.html
+  - クリック地点に一番近い鉄道上のポイントを強調表示する。
+  - turf.nearestPointは、対象にLineStringかMultiLineStringしかとれない。（featureCollectionを対象にできない。）
+  - そのため、queryRenderedFeaturesで得られたデータの成形時に、ターゲットポイント（ここではクリック地点）から最短となる各(Multi)LineStringのポイントを計算する。最終的に、そのポイントのリストをfeatureCollectionにまとめて、nearestPointに渡し、その中からクリック地点に最も近い点を決定する。
+  - `turf.nearestPoint` `turf.nearestPointOnLine`
+
 
 ## 注意すべき点など
 * ベクトルタイルの地物はMapbox GL JSのqueryRenderedFeaturesで行う。解析対象は、画面内でレンダリングされたものとなる（タイルに入っているものがすべて解析対象となるわけではない）。
