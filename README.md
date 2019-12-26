@@ -9,6 +9,9 @@ The example use case of turf js on mapbox gl js using gsimaps vector according t
 * index.html
   - Mapboxのチュートリアルを地理院地図Vectorのベクトルタイルに適用。クリック地点に最も近い、郵便局を強調表示する。
   - `turf.nearestPoint`
+* voronoi.html
+  - 郵便局の位置をもとにボロノイ図を作成。
+  - `turf.voronoi`
 * school.html
   - 学校（高等学校・中学校・小学校）の位置をもとにボロノイ図を作成。また、地図上をクリックすると、最も近い学校を強調表示する。
   - `turf.nearestPoint` `turf.voronoi`
@@ -26,7 +29,7 @@ The example use case of turf js on mapbox gl js using gsimaps vector according t
   - `turf.centroid` `turf.bboxPolygon` `pointsWithinPolygon`
 
 ## 参考文献
-* チュートリアル（Analyze data with Turf.js and Mapbox GL JS） <br> https://docs.mapbox.com/help/tutorials/analysis-with-turf/
-* Turf#nearestPoint <br> http://turfjs.org/docs/#nearestPoint
+* Mapboxによるチュートリアル（Analyze data with Turf.js and Mapbox GL JS） <br> https://docs.mapbox.com/help/tutorials/analysis-with-turf/
+* Turf <br> http://turfjs.org/docs/
 * Mapbox GL JS API Referece (queryRenderedFeatures) <br> https://docs.mapbox.com/mapbox-gl-js/api/#map#queryrenderedfeatures
-* 地理院地図Vector <br> https://github.com/gsi-cyberjapan/gsimaps-vector-experiment
+* 地理院地図Vector（仮称）提供実験 <br> https://github.com/gsi-cyberjapan/gsimaps-vector-experiment
