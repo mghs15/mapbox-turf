@@ -1,6 +1,5 @@
 # Mapbox GL JS上でTurf.jsを利用する
 地理院地図Vectorで提供実験されているベクトルタイルを用いて、Turf.jsで空間解析を行うサンプルサイトを作成した。
-
 The example use case of turf js on mapbox gl js using gsimaps vector according to a [tutorial](https://docs.mapbox.com/help/tutorials/analysis-with-turf/).
 
 ## サンプル
@@ -33,6 +32,6 @@ The example use case of turf js on mapbox gl js using gsimaps vector according t
 
 ## 参考文献
 * Mapboxによるチュートリアル（Analyze data with Turf.js and Mapbox GL JS） <br> https://docs.mapbox.com/help/tutorials/analysis-with-turf/
-* Turf <br> http://turfjs.org/docs/
+* Turf <br> https://turfjs.org/docs/
 * Mapbox GL JS API Referece (queryRenderedFeatures) <br> https://docs.mapbox.com/mapbox-gl-js/api/#map#queryrenderedfeatures
 * 地理院地図Vector（仮称）提供実験 <br> https://github.com/gsi-cyberjapan/gsimaps-vector-experiment
