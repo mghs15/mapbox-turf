@@ -1,7 +1,5 @@
 # Mapbox GL JS上でTurf.jsを利用する
-* 地理院地図Vectorで提供実験されているベクトルタイルを用いて、Turf.jsで空間解析を行うサンプルサイトを作成した。
-* 抽出対象は、タイルに存在するものではなく、画面内でスタイルでレンダリングされたものとなる。
-* Mapbox GL JSのqueryRenderedFeaturesをそのまま利用すると、Turf.jsの処理（ここでは、nearestPoint）でエラーが生じたので、Turf.jsのturf.point、turf.featureCollection等で、データの形を整えてあげる必要があるようだ。
+地理院地図Vectorで提供実験されているベクトルタイルを用いて、Turf.jsで空間解析を行うサンプルサイトを作成した。
 
 The example use case of turf js on mapbox gl js using gsimaps vector according to a [tutorial](https://docs.mapbox.com/help/tutorials/analysis-with-turf/).
 
@@ -27,6 +25,11 @@ The example use case of turf js on mapbox gl js using gsimaps vector according t
 * centroid.html
   - 建物の各ポリゴンデータから代表点を取得。Turf.jsのクリッピング機能（）を利用し、代表点が表示画面内に入っているか判定し、入っているものとはみ出しているものを分別して表示。
   - `turf.centroid` `turf.bboxPolygon` `pointsWithinPolygon`
+
+## 注意すべき点など
+* ベクトルタイルの地物はMapbox GL JSのqueryRenderedFeaturesで行う。解析対象は、画面内でレンダリングされたものとなる（タイルに入っているものがすべて解析対象となるわけではない）。
+* Mapbox GL JSのqueryRenderedFeaturesをそのまま利用すると、Turf.jsの処理でエラーが生じたので、Turf.jsのturf.point、turf.featureCollection等で、データの形をfeatureやfertureCollection等に整えてあげる必要があるようだ。
+* データを整えたり、属性値の加工を行うため、頻繁にFor文を回している。
 
 ## 参考文献
 * Mapboxによるチュートリアル（Analyze data with Turf.js and Mapbox GL JS） <br> https://docs.mapbox.com/help/tutorials/analysis-with-turf/
