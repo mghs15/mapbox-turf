@@ -86,8 +86,16 @@ map.on('click', function(e) {
 //事前にデータソースを準備しておく
 //データソースのデータを入れ替えていくほうがよさそう（そうしないと、データソースの重複エラーが出る。）
 map.on('load', function() {
-  //クリック地点に一番近いポイント
+  //バッファ
   map.addSource('buffer-target', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+  //bbox
+  map.addSource('bbox', {
     type: 'geojson',
     data: {
       type: 'FeatureCollection',
@@ -103,13 +111,27 @@ map.on('click', function(e) {
   if(map.getLayer('buffer-target')){
     map.removeLayer('buffer-target');
   }
-
+  if(map.getLayer('bbox')){
+    map.removeLayer('bbox');
+  }
   
   //クリックポイント
   var clickPoints = turf.point([ e.lngLat.lng, e.lngLat.lat ]);
  
   console.log("クリックポイント");
   console.log(e.lngLat);
+  
+  
+  //bbox
+  var map_bbox = map.getBounds();
+  
+  var options = {
+    bbox: [map_bbox._sw.lng, map_bbox._sw.lat, map_bbox._ne.lng, map_bbox._ne.lat]
+  };
+  
+  var bbox_poly = turf.bboxPolygon(options.bbox);  
+  
+  console.log(bbox_poly);
   
   
   //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
@@ -149,6 +171,22 @@ map.on('click', function(e) {
   
   
   if (bufferTarget !== null) {
+
+    //bbox
+    map.getSource('bbox').setData(
+      bbox_poly
+    );
+    map.addLayer({
+      id: 'bbox',
+      type: 'line',
+      source: 'bbox',
+      layout: {},
+      paint: {
+        'line-color': '#FF0000'
+      }
+    }, 'gsibv-vectortile-layer-2814');
+
+    //buffer
     map.getSource('buffer-target').setData(
       bufferTarget
     );
@@ -159,9 +197,10 @@ map.on('click', function(e) {
       source: 'buffer-target',
       paint: {
         'fill-color': '#FF0000',
-        'fill-opacity': 0.5
+        'fill-opacity': 0.2
       }
-    }, 'gsibv-vectortile-layer-2254');
+    }, 'gsibv-vectortile-layer-2169');
+    
   }else{
     console.log("error?")
   }  
