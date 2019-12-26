@@ -29,7 +29,9 @@ The example use case of turf js on mapbox gl js using gsimaps vector according t
   - turf.nearestPointは、対象にLineStringかMultiLineStringしかとれない。（featureCollectionを対象にできない。）
   - そのため、queryRenderedFeaturesで得られたデータの成形時に、ターゲットポイント（ここではクリック地点）から最短となる各(Multi)LineStringのポイントを計算する。最終的に、そのポイントのリストをfeatureCollectionにまとめて、nearestPointに渡し、その中からクリック地点に最も近い点を決定する。
   - `turf.nearestPoint` `turf.nearestPointOnLine`
-
+* buffer.html
+  - 鉄道駅部分のラインデータにバッファを発生させる。
+  - `turf.buffer`
 
 ## 注意すべき点など
 * ベクトルタイルの地物はMapbox GL JSのqueryRenderedFeaturesで行う。解析対象は、画面内でレンダリングされたものとなる（タイルに入っているものがすべて解析対象となるわけではない）。
