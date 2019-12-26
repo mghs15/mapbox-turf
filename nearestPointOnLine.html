@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8' />
+<title>Display a map</title>
+<meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+<link href='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css' rel='stylesheet' />
+<script src='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js'></script>
+<script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+<script src='./fill-pattern-image.js'></script>
+<style>
+body { margin:0; padding:0; }
+#map {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+}
+</style>
+</head>
+<body>
+ 
+<div id='map'></div>
+
+
+<script>
+var map = new mapboxgl.Map({
+  container: 'map', // container id
+  hash: true, //add #position on URL
+  style: './style.json', // stylesheet location
+  center: [139.78148, 35.768793], // starting position [lng, lat]
+  zoom: 15, // starting zoom
+  maxZoom: 18
+//  localIdeographFontFamily: "MS Gothic"
+});
+
+//Add Images
+addFillPatternImages();
+
+map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+map.addControl(new mapboxgl.ScaleControl() );
+
+/* turf.js ------------------------------------------------------------------------------------------- */
+
+//鉄道はレイヤが細かく分かれすぎているので、解析対象とするために1レイヤとして加えておく。
+//"map"のloadが終わったら、読み込まれるようにする。
+map.on('load', function(e) {
+  map.addLayer({
+    id: 'target-way',
+    type: 'line',
+    source: 'gsibv-vectortile-source-1-4-17',
+    'source-layer': 'railway',
+    paint: {
+      'line-opacity': 0,
+      'line-color': '#FFFFFF'
+    }
+  }, 'gsibv-vectortile-layer-1994');
+});
+
+//ポップアップ表示
+var popup = new mapboxgl.Popup();
+
+map.on('click', function(e) {
+  var features = map.queryRenderedFeatures(e.point, { layers: [ 'target-way' ]});
+  
+  if (!features.length) {
+    popup.remove();
+    return;
+  }
+  var feature = features[0];
+
+  popup.setLngLat(feature.geometry.coordinates)
+    .setHTML(feature.properties.ftCode)
+    .addTo(map);
+
+  map.getCanvas().style.cursor = features.length ? 'pointer' : '';
+});
+
+
+//事前にデータソースを準備しておく
+//データソースのデータを入れ替えていくほうがよさそう（そうしないと、データソースの重複エラーが出る。）
+map.on('load', function() {
+  //クリック地点に一番近いポイント
+  map.addSource('nearest-target', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+});
+
+//Turf.jsでクリック地点に一番近い鉄道を強調表示する。
+
+map.on('click', function(e) {
+  
+  if(map.getLayer('nearest-target')){
+    map.removeLayer('nearest-target');
+  }
+
+  
+  //クリックポイント
+  var clickPoints = turf.point([ e.lngLat.lng, e.lngLat.lat ]);
+ 
+  console.log("クリックポイント");
+  console.log(e.lngLat);
+  
+  
+  //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
+  //Mapboxの map.queryRenderedFeaturesで得られたものをそのまま載せるだけではダメなようである。
+  //http://turfjs.org/docs/#nearestPoint にあるように、turf.point/turf.featureCollectionで変換が必要みたい。
+  
+  var targetsQuery = map.queryRenderedFeatures({ layers: ['target-way'] }); //目的レイヤの地物を取得
+  var targetsList = new Array; //地物用
+  var nearestPointList = new Array; //最近点用
+  
+  console.log( targetsQuery );
+  
+  //turf.nearestPointは、対象にLineStringかMultiLineStringしかとれない。
+  //（featureCollectionを対象にできない。）
+  //そのため、queryRenderedFeaturesで得られたデータの成形時に、
+  //ターゲットポイント（ここではクリック地点）から最短となる各(Multi)LineStringの点を計算する。
+  //最終的に、その点をfeatureCollectionにまとめて、nearestPointに渡し、クリック地点に最も近い点を決定する。
+  if(targetsQuery.length > 0){
+    for(var i in targetsQuery ){
+      if(targetsQuery[i].geometry.type == "LineString" ){
+        var line = turf.lineString( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties );
+        targetsList.push( line );
+        nearestPointList.push( turf.nearestPointOnLine(line, clickPoints));
+      }
+      if(targetsQuery[i].geometry.type == "MultiLineString" ){
+        var line = turf.multiLineString( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties );
+        targetsList.push( line );
+        nearestPointList.push( turf.nearestPointOnLine(line, clickPoints));
+      }
+    }
+  }else{
+    return;
+  }
+  
+  //地物用
+  var targetFeatures = turf.featureCollection(targetsList);
+  console.log( targetFeatures );
+  //最近点
+  var targetPointFeatures = turf.featureCollection(nearestPointList);
+  console.log( targetPointFeatures );
+  
+  //ターゲットポイント（ここではクリック地点）から最短となる各(Multi)LineStringの点の集まりうち、
+  //実際にターゲットポイントに最も近い点を計算する。
+  var nearestTarget = turf.nearestPoint(clickPoints, targetPointFeatures);
+  
+  
+  if (nearestTarget !== null) {
+    map.getSource('nearest-target').setData(
+      nearestTarget
+    );
+    
+    map.addLayer({
+      id: 'nearest-target',
+      type: 'circle',
+      source: 'nearest-target',
+      paint: {
+        'circle-radius': 10,
+        'circle-color': [
+          'case', 
+          ['==', ['get', 'ftCode'], 3212], '#FFCCCC',
+          ['==', ['get', 'ftCode'], 3213], '#CCFFCC',
+          ['==', ['get', 'ftCode'], 3214], '#CCCCFF',
+          '#FF0000'
+        ]
+      }
+    }, 'gsibv-vectortile-layer-2558');
+  }else{
+    console.log("error?")
+  }  
+  
+});
+
+
+</script>
+ 
+</body>
+</html>
