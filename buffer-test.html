@@ -229,7 +229,7 @@ map.on('click', function(e) {
         }
         targetsPolyBuilding.push( build_poly );
         //Centroid Pointsとして
-        var build_point = turf.centroid( build_poly );
+        var build_point = turf.centerOfMass( build_poly );
         targetsPointBuilding.push( build_point );
       }
     }
