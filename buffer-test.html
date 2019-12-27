@@ -69,16 +69,27 @@ map.on('load', function(e) {
 var popup = new mapboxgl.Popup();
 
 map.on('click', function(e) {
-  var features = map.queryRenderedFeatures(e.point, { layers: [ targetLayerId ]});
+  var features = map.queryRenderedFeatures(e.point, { layers: [ 'target-building' ]});
   
   if (!features.length) {
     popup.remove();
     return;
   }
   var feature = features[0];
+  
+  console.log("ポップアップテスト");
+  console.log(feature);
+  
+  /*
+  var popupHTML = "<ul>";
+  for(i in feature.geometry.coordinates[0]){
+    popupHTML = popupHTML + "<li>" + feature.properties.geometry.coordinates[0][i][0] + ", " + feature.properties.geometry.coordinates[0][i][0] + "</li>" ;
+  }
+  popupHTML = popupHTML + "</ul>";
+  */
 
-  popup.setLngLat(feature.geometry.coordinates)
-    .setHTML(feature.properties.ftCode)
+  popup.setLngLat(feature.geometry.coordinates[0][0])
+    .setHTML(feature.geometry.type)
     .addTo(map);
 
   map.getCanvas().style.cursor = features.length ? 'pointer' : '';
@@ -120,6 +131,14 @@ map.on('load', function() {
       features: []
     }
   });
+  //all building renderd
+  map.addSource('building-all', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
 });
 
 //Turf.jsで郵便局にバッファを表示する。
@@ -138,7 +157,10 @@ map.on('click', function(e) {
   if(map.getLayer('centroid-target')){
     map.removeLayer('centroid-target');
   }
-
+  if(map.getLayer('building-all')){
+    map.removeLayer('building-all');
+  }
+  
 
   //bbox
   var map_bbox = map.getBounds();
@@ -217,25 +239,34 @@ map.on('click', function(e) {
   var targetsPointBuilding = new Array; //地物用
   
   
+  var debug_count = 0;
   if(targetsQueryBuilding.length > 0){
     for(var i in targetsQueryBuilding ){
       if(targetsQueryBuilding[i].geometry.type == "Polygon" || targetsQueryBuilding[i].geometry.type == "MultiPolygon"){
         //ポリゴンとして      
         if( targetsQueryBuilding[i].geometry.type == "Polygon" ){
           var build_poly = turf.polygon( targetsQueryBuilding[i].geometry.coordinates, targetsQueryBuilding[i].properties );
-        }
-        if( targetsQueryBuilding[i].geometry.type == "MultiPolygon"){
+        }else if( targetsQueryBuilding[i].geometry.type == "MultiPolygon"){
           var build_poly = turf.multiPolygon( targetsQueryBuilding[i].geometry.coordinates, targetsQueryBuilding[i].properties );
+        }else{
+          continue;
         }
+        
         targetsPolyBuilding.push( build_poly );
         //Centroid Pointsとして
         var build_point = turf.centerOfMass( build_poly );
         targetsPointBuilding.push( build_point );
+        
+        debug_count = debug_count + 1;
       }
     }
   }else{
     return;
   }
+  
+  console.log( "デバッグ6 poly  約 " + targetsPolyBuilding.length + " 軒" );  
+  console.log( "デバッグ5 point 約 " + targetsPointBuilding.length + " 軒" );  
+  console.log( "デバッグ4　約 " + debug_count + " 軒" );  
   
   //建物のポリゴン・CentroidをCollectionに
   var targetsPolyBuildingCollection = turf.featureCollection(targetsPolyBuilding);
@@ -252,25 +283,43 @@ map.on('click', function(e) {
   var resultIntersection = new Array();
   var areaTotalBuildingClipped = 0;
   var debug_count = 0;
+  var debug_countp = 0;
+  var debug_countm = 0;
   for(var i in targetsPolyBuildingCollection.features ){
     if( targetsPolyBuildingCollection.features[i].geometry.type == "Polygon" ){
           var eachBuildingPoly = turf.polygon( targetsPolyBuildingCollection.features[i].geometry.coordinates, targetsPolyBuildingCollection.features[i].properties  );
+          debug_countp = debug_countp + 1;
     }else if( targetsPolyBuildingCollection.features[i].geometry.type == "MultiPolygon"){
           var eachBuildingPoly = turf.multiPolygon( targetsPolyBuildingCollection.features[i].geometry.coordinates, targetsPolyBuildingCollection.features[i].properties  );
+          debug_countm = debug_countm + 1;
     }else{
-         continue;
-    }     
+          continue;
+    }
+    
+    //自己交差のチェック
+    /*
+    var kinks = turf.kinks(eachBuildingPoly);
+    if(kinks.features.length > 0){
+      console.log("kinks -----------------------" + i);
+      console.log(kinks);
+      continue;
+    }
+    */
+    
+    //intersect
     var eachIntersection = turf.intersect( eachBuildingPoly , bufferClipPointWithinBbox );
     
     if( eachIntersection !== null ){
-      resultIntersection.push( eachIntersection );
-      areaTotalBuildingClipped = areaTotalBuildingClipped + turf.area(eachIntersection);
-      debug_count = debug_count + 1;
+      if( eachIntersection.geometry.type == "Polygon" || eachIntersection.geometry.type == "MultiPolygon" ){
+        resultIntersection.push( eachIntersection );
+        areaTotalBuildingClipped = areaTotalBuildingClipped + turf.area(eachIntersection);
+        debug_count = debug_count + 1;
+      }
     }
   }
   
-  console.log( "デバッグ　約 " + targetsPolyBuildingCollection.features.length + " 軒" );  
-  console.log( "デバッグ　約 " + debug_count + " 軒" );  
+  console.log( "デバッグ3　約 " + targetsPolyBuildingCollection.features.length + " 軒" );  
+  console.log( "デバッグ2　約 " + debug_count + " 軒"  + " Polygon " +  debug_countp + " MultiPolygon " +  debug_countm );  
   
   
   resultIntersection = turf.featureCollection( resultIntersection );
@@ -280,7 +329,7 @@ map.on('click', function(e) {
   areaTotalBuildingClipped = areaTotalBuildingClipped / (1000 * 1000); //m^2 → km^2
   
   console.log( "約 " + areaTotalBuildingClipped + " km^2");
-  console.log( "デバッグ　約 " + resultIntersection .features.length + " 軒" );  
+  console.log( "デバッグ1　約 " + resultIntersection .features.length + " 軒" );  
   
   
   //軒数（建物Centroidをバッファでクリップ→点数測定）
@@ -292,6 +341,22 @@ map.on('click', function(e) {
   
   if (bufferClipPoint !== null) {
 
+   //all building
+    map.getSource('building-all').setData(
+      targetsPolyBuildingCollection 
+    );
+    
+    map.addLayer({
+      id: 'building-all',
+      type: 'fill',
+      source: 'building-all',
+      paint: {
+        'fill-color': '#FFFF00',
+        'fill-opacity': 0.3
+      }
+    }, 'gsibv-vectortile-layer-2814');
+    
+    
     //bbox
     map.getSource('bbox').setData(
       bbox_poly
@@ -334,7 +399,7 @@ map.on('click', function(e) {
         'fill-color': '#FF0000',
         'fill-opacity': 0.3
       }
-    }, 'gsibv-vectortile-layer-2814');
+    }, 'gsibv-vectortile-layer-2815');
 
     //centroid points 
     map.getSource('centroid-target').setData(
