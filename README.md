@@ -3,37 +3,37 @@
 The example use case of turf js on mapbox gl js using gsimaps vector according to a [tutorial](https://docs.mapbox.com/help/tutorials/analysis-with-turf/).
 
 ## サンプル
-* index.html
+* [index.html](https://mghs15.github.io/mapbox-turf/)
   - Mapboxのチュートリアルを地理院地図Vectorのベクトルタイルに適用。クリック地点に最も近い、郵便局を強調表示する。
   - `turf.nearestPoint`
-* voronoi.html
+* [voronoi.html](https://mghs15.github.io/mapbox-turf/voronoi.html)
   - 郵便局の位置をもとにボロノイ図を作成。
   - `turf.voronoi`
-* school.html
+* [school.html](https://mghs15.github.io/mapbox-turf/school.html)
   - 学校（高等学校・中学校・小学校）の位置をもとにボロノイ図を作成。また、地図上をクリックすると、最も近い学校を強調表示する。
   - `turf.nearestPoint` `turf.voronoi`
-* isolines.html
+* [isolines.html](https://mghs15.github.io/mapbox-turf/isolines.html)
   - 標高値を持つポイントから、IDWを用いた内挿により、ポイントグリッドを作成。ポイントグリッドからisolines（等値線）を表示する。
   - `turf.interpolate` `turf.isolines`
-* isobands.html
+* [isobands.html](https://mghs15.github.io/mapbox-turf/isobands.html)
   - 標高値を持つポイントから、IDWを用いた内挿により、ポイントグリッドを作成。ポイントグリッドからisobands（等値線の間の部分をポリゴンとしたもの）を表示する。表示の際は、fill-extrusionを用いて、標高値を視覚的に表現。
   - `turf.interpolate` `turf.isobands` 
-* tin.html
+* [tin.html](https://mghs15.github.io/mapbox-turf/tin.html)
   - 標高値を持つポイントから、TINを発生させて表示する。表示の際は、fill-extrusionを用いて、標高値を視覚的に表現。
   - `turf.tin`
-* centroid.html
+* [centroid.html](https://mghs15.github.io/mapbox-turf/centroid.html)
   - 建物の各ポリゴンデータから代表点を取得。Turf.jsのクリッピング機能（）を利用し、代表点が表示画面内に入っているか判定し、入っているものとはみ出しているものを分別して表示。
   - なお、`turf.centroid`は頂点で重みづけされているようである。ポリゴンの重心を出すには、`turf.centerOfMass`の方が良いかもしれない。
   - `turf.centroid` `turf.bboxPolygon` `turf.pointsWithinPolygon`
-* nearestPointOnLine.html
+* [nearestPointOnLine.html](https://mghs15.github.io/mapbox-turf/nearestPointOnLine.html)
   - クリック地点に一番近い鉄道上のポイントを強調表示する。
   - turf.nearestPointは、対象にLineStringかMultiLineStringしかとれない。（featureCollectionを対象にできない。）
   - そのため、queryRenderedFeaturesで得られたデータの成形時に、ターゲットポイント（ここではクリック地点）から最短となる各(Multi)LineStringのポイントを計算する。最終的に、そのポイントのリストをfeatureCollectionにまとめて、nearestPointに渡し、その中からクリック地点に最も近い点を決定する。
   - `turf.nearestPoint` `turf.nearestPointOnLine`
-* buffer.html
+* [buffer.html](https://mghs15.github.io/mapbox-turf/buffer.html])
   - 鉄道駅部分のラインデータにバッファを発生させる。
   - `turf.buffer`
-* clustersKmeans.html
+* [clustersKmeans.html](https://mghs15.github.io/mapbox-turf/clustersKmeans.html)
   - kmeans法により、普通建物のクラスタリングを行う。クラスター数はクエリに`?kmeans=クラスター数`を指定できるようにしている。
   - また、クエリに`?maxd=距離（km）`を指定することで、指定距離をクラスター内の点間の最大距離とするDbscanのクラスタリングを行うようにしている。
   - 色分けは"case"で20色を指定しているので、クラスター数がそれを超えると、超えた分のクラスターは同じ色（薄い赤色）で表示される。なお、Dbscanのクラスタリングの場合、クラスターに入らなかった点は灰色で表示される。
