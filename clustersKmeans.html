@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8' />
+<title>Display a map</title>
+<meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+<link href='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css' rel='stylesheet' />
+<script src='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js'></script>
+<script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+<!--
+<script src='https://api.mapbox.com/mapbox.js/plugins/turf/v3.0.11/turf.min.js'></script>
+-->
+<script src='./fill-pattern-image.js'></script>
+<style>
+body { margin:0; padding:0; }
+#map {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+}
+</style>
+</head>
+<body>
+ 
+<div id='map'></div>
+
+
+<script>
+var map = new mapboxgl.Map({
+  container: 'map', // container id
+  hash: true, //add #position on URL
+  style: './style.json', // stylesheet location
+  center: [139.78148, 35.768793], // starting position [lng, lat]
+  zoom: 15, // starting zoom
+  maxZoom: 18,
+  localIdeographFontFamily: "MS Gothic"
+});
+
+//Add Images
+addFillPatternImages();
+
+map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+map.addControl(new mapboxgl.ScaleControl() );
+
+/* turf.js ------------------------------------------------------------------------------------------- */
+
+//普通建物 "id":"gsibv-vectortile-layer-2522"
+
+//ポップアップ表示
+var popup = new mapboxgl.Popup();
+
+map.on('click', function(e) {
+  
+  if(map.getLayer('result-target')){
+    map.removeLayer('result-target');
+  }
+  
+
+  var features = map.queryRenderedFeatures(e.point, { layers: ['gsibv-vectortile-layer-2522']});
+  if (!features.length) {
+    popup.remove();
+    return;
+  }
+  var feature = features[0];
+
+  popup.setLngLat(feature.geometry.coordinates)
+    .setHTML(feature.properties.ftCode)
+    .addTo(map);
+
+  map.getCanvas().style.cursor = features.length ? 'pointer' : '';
+});
+
+
+//Turf.jsで普通建物のCentroidを表示する。
+
+map.on('load', function() {
+  map.addSource('result-target', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+  map.addSource('result-target-bbox', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+  map.addSource('bbox', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+  map.addSource('kmeans', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+});
+
+
+map.on('click', function(e) {
+  
+  if(map.getLayer('result-target')){
+    map.removeLayer('result-target');
+  }
+  if(map.getLayer('result-target-bbox')){
+    map.removeLayer('result-target-bbox');
+  }
+  if(map.getLayer('bbox')){
+    map.removeLayer('bbox');
+  }
+  if(map.getLayer('kmeans')){
+    map.removeLayer('kmeans');
+  }
+  
+  /*
+  if(targetsQuery.length > 0){
+    for(var i in targetsQuery ){
+      targetsList.push( turf.polygon( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) );
+    }
+  }else{
+    return;
+  }
+  
+  var targetFeatures = turf.featureCollection(targetsList);
+  
+  var clickPoints = turf.point([ e.lngLat.lng, e.lngLat.lat ]);
+ 
+  console.log("クリックポイント");
+  console.log(e.lngLat);
+  */  
+  
+  
+  //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
+  //Mapboxの map.queryRenderedFeaturesで得られたものをそのまま載せるだけではダメなようである。
+  //http://turfjs.org/docs/#nearestPoint にあるように、turf.point/turf.featureCollectionで変換が必要みたい。
+  var targetsQuery = map.queryRenderedFeatures({ layers: ['gsibv-vectortile-layer-2152'] }); //目的のレイヤIDでレンダリングされる地物を取得
+  var targetsList = new Array;
+  
+  console.log(targetsQuery);
+  
+  
+  //Centroid
+  
+  var resultTarget = new Array;
+
+  if(targetsQuery.length > 0){
+    for(var i in targetsQuery ){
+      if(targetsQuery[i].geometry.type == "Polygon"){
+        resultTarget.push( turf.centerOfMass( turf.polygon( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) ) );
+        targetsList.push( turf.polygon( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) );
+        //ここで得られるのは配列なので、最終的にどこかでFeatureCollectionにしてあげる必要がある。
+      }
+    }
+  }else{
+    return;
+  }
+  
+  var resultTargetCollection = turf.featureCollection(resultTarget);
+
+  console.log(resultTargetCollection);
+  console.log(resultTargetCollection.features.length);  
+  
+  
+  
+  //bbox
+  var map_bbox = map.getBounds();
+  
+  var options = {
+    bbox: [map_bbox._sw.lng, map_bbox._sw.lat, map_bbox._ne.lng, map_bbox._ne.lat]
+  };
+  
+  var bbox_poly = turf.bboxPolygon(options.bbox);
+  console.log(bbox_poly);
+  
+  
+  
+  //clip
+  var resultTargetBbox = turf.pointsWithinPolygon( resultTargetCollection , bbox_poly );
+
+  console.log( resultTargetBbox );
+  console.log( resultTargetBbox.features.length );
+  
+  
+  //k-means clustering
+  var qr = window.location.search;
+  var q  = qr.slice(1).split('=');
+  console.log(q);
+  if(q[0] == "maxd"){
+    var maxDist = parseFloat(q[1]);
+    console.log(maxDist);
+    var resultTargetBboxCluster = turf.clustersDbscan( resultTargetBbox, maxDist );
+    console.log( resultTargetBboxCluster );
+  }else{
+    var numberOfClst = 3;
+    if(q[0] == "kmean"){
+      numberOfClst = parseInt(q[1], 10);
+    }
+    var resultTargetBboxCluster = turf.clustersKmeans( resultTargetBbox, {numberOfClusters: numberOfClst } );
+    console.log( resultTargetBboxCluster );
+  }
+  
+  
+  if (resultTarget !== null) {
+    //centroid points 
+    /*
+    map.getSource('result-target').setData({
+      type: 'FeatureCollection',
+      features: resultTarget
+    });
+    map.addLayer({
+      id: 'result-target',
+      type: 'symbol',
+      source: 'result-target',
+      layout: {
+        "icon-image":"水深-20",
+        "icon-size": 1,
+        "icon-allow-overlap": true
+      },
+      paint: {
+      }
+    }, 'gsibv-vectortile-layer-2816');
+    */
+
+    //centroid points in bbox
+    map.getSource('result-target-bbox').setData(
+      resultTargetBbox
+    );
+    map.addLayer({
+      id: 'result-target-bbox',
+      type: 'symbol',
+      source: 'result-target-bbox',
+      layout: {
+        "icon-image":"人口50万人未満-500",
+        "icon-size": 0.3,
+        "icon-allow-overlap": true
+      },
+      paint: {
+      }
+    }, 'gsibv-vectortile-layer-2816');
+
+    //bbox
+    map.getSource('bbox').setData(
+      bbox_poly
+    );
+    map.addLayer({
+      id: 'bbox',
+      type: 'fill',
+      source: 'bbox',
+      layout: {},
+      paint: {
+        'fill-opacity': 0.8,
+        'fill-color': '#FFDDDD',
+        'fill-outline-color': '#FF0000'
+      }
+    }, 'gsibv-vectortile-layer-2814');
+
+    //k-means cluster
+    map.getSource('kmeans').setData(
+      resultTargetBboxCluster
+    );
+    
+    map.addLayer({
+      id: 'kmeans',
+      type: 'circle',
+      source: 'kmeans',
+      paint: {
+        'circle-radius': 8,
+        'circle-color': [
+        "case",
+        ["has", "cluster"],
+        [
+          "case",
+          ["==", ["get", "cluster"], 0], '#d47dff',
+          ["==", ["get", "cluster"], 1], '#ff0000',
+          ["==", ["get", "cluster"], 2], '#ffc800',
+          ["==", ["get", "cluster"], 3], '#33ff00',
+          ["==", ["get", "cluster"], 4], '#00b3ff',
+          ["==", ["get", "cluster"], 5], '#2200ff',
+          ["==", ["get", "cluster"], 6], '#c300ff',
+          ["==", ["get", "cluster"], 7], '#ff8800',
+          ["==", ["get", "cluster"], 8], '#fce6a9',
+          ["==", ["get", "cluster"], 9], '#a9d4fc',
+          ["==", ["get", "cluster"], 10], '#a9ffa1',
+          '#ffc9c9'
+        ],
+        '#a3a3a3'
+        ]
+      }
+    }, 'gsibv-vectortile-layer-2814');
+
+  }else{
+    console.log("error?")
+  }
+});
+
+
+</script>
+ 
+</body>
+</html>
