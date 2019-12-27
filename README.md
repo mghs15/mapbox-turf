@@ -36,7 +36,7 @@ The example use case of turf js on mapbox gl js using gsimaps vector according t
 * clustersKmeans.html
   - kmeans法により、普通建物のクラスタリングを行う。クラスター数はクエリに`?kmeans=クラスター数`を指定できるようにしている。
   - また、クエリに`?maxd=距離（km）`を指定することで、指定距離をクラスター内の点間の最大距離とするDbscanのクラスタリングを行うようにしている。
-  - 色分けは"case"で12色を指定しているので、クラスター数がそれを超えると、超えた分のクラスターは同じ色（桃色）で表示される。なお、Dbscanのクラスタリングの場合、クラスターに入らなかった点は灰色で表示される。
+  - 色分けは"case"で20色を指定しているので、クラスター数がそれを超えると、超えた分のクラスターは同じ色（薄い赤色）で表示される。なお、Dbscanのクラスタリングの場合、クラスターに入らなかった点は灰色で表示される。
   - `turf.clustersKmeans` `turf.clustersDbscan`
 
 ## 注意すべき点など
