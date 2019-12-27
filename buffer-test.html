@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8' />
+<title>Display a map</title>
+<meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+<link href='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css' rel='stylesheet' />
+<script src='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js'></script>
+<script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+<script src='./fill-pattern-image.js'></script>
+<style>
+body { margin:0; padding:0; }
+#map {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+}
+</style>
+</head>
+<body>
+ 
+<div id='map'></div>
+
+
+<script>
+var map = new mapboxgl.Map({
+  container: 'map', // container id
+  hash: true, //add #position on URL
+  style: './style.json', // stylesheet location
+  center: [139.78148, 35.768793], // starting position [lng, lat]
+  zoom: 15, // starting zoom
+  maxZoom: 18
+//  localIdeographFontFamily: "MS Gothic"
+});
+
+//Add Images
+addFillPatternImages();
+
+map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+map.addControl(new mapboxgl.ScaleControl() );
+
+/* turf.js ------------------------------------------------------------------------------------------- */
+
+//設定等
+var targetLayerId = 'gsibv-vectortile-layer-2566'; //郵便局など
+
+//解析対象の建物を1レイヤとして加えておく。
+//"map"のloadが終わったら、読み込まれるようにする。
+map.on('load', function(e) {
+  map.addLayer({
+    id: 'target-building',
+    type: 'fill',
+    source: 'gsibv-vectortile-source-1-4-17',
+    'source-layer': 'building',
+    filter: [ 
+      "all",
+      ["==","$type", "Polygon"]
+    ],
+    paint: {
+      'fill-opacity': 0,
+      'fill-color': '#FFFFFF'
+    }
+  }, 'gsibv-vectortile-layer-1994');
+});
+
+
+//ポップアップ表示
+var popup = new mapboxgl.Popup();
+
+map.on('click', function(e) {
+  var features = map.queryRenderedFeatures(e.point, { layers: [ targetLayerId ]});
+  
+  if (!features.length) {
+    popup.remove();
+    return;
+  }
+  var feature = features[0];
+
+  popup.setLngLat(feature.geometry.coordinates)
+    .setHTML(feature.properties.ftCode)
+    .addTo(map);
+
+  map.getCanvas().style.cursor = features.length ? 'pointer' : '';
+});
+
+
+//事前にデータソースを準備しておく
+//データソースのデータを入れ替えていくほうがよさそう（そうしないと、データソースの重複エラーが出る。）
+map.on('load', function() {
+  //buffer
+  map.addSource('buffer-target', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+  //building
+  map.addSource('building-target', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+  //bbox
+  map.addSource('bbox', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+  //centroid
+  map.addSource('centroid-target', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+});
+
+//Turf.jsで郵便局にバッファを表示する。
+
+map.on('click', function(e) {
+  
+  if(map.getLayer('buffer-target')){
+    map.removeLayer('buffer-target');
+  }
+  if(map.getLayer('building-target')){
+    map.removeLayer('building-target');
+  }
+  if(map.getLayer('bbox')){
+    map.removeLayer('bbox');
+  }
+  if(map.getLayer('centroid-target')){
+    map.removeLayer('centroid-target');
+  }
+
+
+  //bbox
+  var map_bbox = map.getBounds();
+  
+  var options = {
+    bbox: [map_bbox._sw.lng, map_bbox._sw.lat, map_bbox._ne.lng, map_bbox._ne.lat]
+  };
+  
+  var bbox_poly = turf.bboxPolygon(options.bbox);  
+  
+  console.log("BBOX");
+  console.log(bbox_poly);  
+  
+  //クリックポイント
+  var clickPoints = turf.point([ e.lngLat.lng, e.lngLat.lat ]);
+ 
+  console.log("クリックポイント");
+  console.log(e.lngLat);
+  
+  var bufferClipPoint = turf.buffer(clickPoints, 1);
+  var bufferClipPointWithinBbox = turf.intersect( bufferClipPoint , bbox_poly ); //最終的にこれでクリップする
+  
+
+  
+  
+  /*------------------------------------------------------------------------------------------------------------*/
+  /*
+  //郵便局
+  //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
+  //Mapboxの map.queryRenderedFeaturesで得られたものをそのまま載せるだけではダメなようである。
+  //http://turfjs.org/docs/#nearestPoint にあるように、turf.point/turf.featureCollectionで変換が必要みたい。
+  
+  var targetsQuery = map.queryRenderedFeatures({ layers: [targetLayerId] }); //目的レイヤの地物を取得
+  var targetsList = new Array; //地物用
+  var nearestPointList = new Array; //最近点用
+  
+  console.log( targetsQuery );
+  
+  if(targetsQuery.length > 0){
+    for(var i in targetsQuery ){
+      var post_point = turf.point( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties );
+      targetsList.push( post_point );
+    }
+  }else{
+    return;
+  }
+  
+  //目的レイヤのデータをCollectionに
+  var targetFeatures = turf.featureCollection(targetsList);
+  console.log("バッファ源のレイヤ");
+  console.log( targetFeatures );
+  
+  //バッファー
+  //var cellSize = 5000 / Math.pow( 2, map.getZoom() );
+  var cellSize = 0.5 / Math.pow( 2, map.getZoom() ); // km
+  console.log("バッファ");
+  var bufferTarget = turf.buffer(targetFeatures, cellSize);
+//  var bufferTargetCollection = turf.featureCollection( bufferTarget );
+  console.log(bufferTarget);
+  *//*----------------------------------------------------------------------------------------------------------*/
+
+
+  //建物
+  //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
+  //Mapboxの map.queryRenderedFeaturesで得られたものをそのまま載せるだけではダメなようである。
+  //http://turfjs.org/docs/#nearestPoint にあるように、turf.point/turf.featureCollectionで変換が必要みたい。
+  
+  var targetsQueryBuilding = map.queryRenderedFeatures({ layers: [ 'target-building' ] }); //目的レイヤの地物を取得
+  
+  console.log("建物レイヤからの取得クエリ");
+  console.log( targetsQueryBuilding );  
+  
+  var targetsPolyBuilding = new Array; //地物用
+  var targetsPointBuilding = new Array; //地物用
+  
+  
+  if(targetsQueryBuilding.length > 0){
+    for(var i in targetsQueryBuilding ){
+      if(targetsQueryBuilding[i].geometry.type == "Polygon" || targetsQueryBuilding[i].geometry.type == "MultiPolygon"){
+        //ポリゴンとして      
+        if( targetsQueryBuilding[i].geometry.type == "Polygon" ){
+          var build_poly = turf.polygon( targetsQueryBuilding[i].geometry.coordinates, targetsQueryBuilding[i].properties );
+        }
+        if( targetsQueryBuilding[i].geometry.type == "MultiPolygon"){
+          var build_poly = turf.multiPolygon( targetsQueryBuilding[i].geometry.coordinates, targetsQueryBuilding[i].properties );
+        }
+        targetsPolyBuilding.push( build_poly );
+        //Centroid Pointsとして
+        var build_point = turf.centroid( build_poly );
+        targetsPointBuilding.push( build_point );
+      }
+    }
+  }else{
+    return;
+  }
+  
+  //建物のポリゴン・CentroidをCollectionに
+  var targetsPolyBuildingCollection = turf.featureCollection(targetsPolyBuilding);
+  console.log("建物のポリゴン featureCollection");
+  console.log( targetsPolyBuildingCollection );
+  var targetsPointBuildingCollection = turf.featureCollection(targetsPointBuilding);
+  console.log("建物のCentroid featureCollection");
+  console.log( targetsPointBuildingCollection );
+  
+  
+  //バッファ内の建物の面積と数を計算
+  //面積（建物ポリゴンをバッファでクリップ→面積測定）
+  
+  var resultIntersection = new Array();
+  var areaTotalBuildingClipped = 0;
+  var debug_count = 0;
+  for(var i in targetsPolyBuildingCollection.features ){
+    if( targetsPolyBuildingCollection.features[i].geometry.type == "Polygon" ){
+          var eachBuildingPoly = turf.polygon( targetsPolyBuildingCollection.features[i].geometry.coordinates, targetsPolyBuildingCollection.features[i].properties  );
+    }else if( targetsPolyBuildingCollection.features[i].geometry.type == "MultiPolygon"){
+          var eachBuildingPoly = turf.multiPolygon( targetsPolyBuildingCollection.features[i].geometry.coordinates, targetsPolyBuildingCollection.features[i].properties  );
+    }else{
+         continue;
+    }     
+    var eachIntersection = turf.intersect( eachBuildingPoly , bufferClipPointWithinBbox );
+    
+    if( eachIntersection !== null ){
+      resultIntersection.push( eachIntersection );
+      areaTotalBuildingClipped = areaTotalBuildingClipped + turf.area(eachIntersection);
+      debug_count = debug_count + 1;
+    }
+  }
+  
+  console.log( "デバッグ　約 " + targetsPolyBuildingCollection.features.length + " 軒" );  
+  console.log( "デバッグ　約 " + debug_count + " 軒" );  
+  
+  
+  resultIntersection = turf.featureCollection( resultIntersection );
+  console.log( "バッファでクリップした建物ポリゴン featureCollection");
+  console.log( resultIntersection );
+  
+  areaTotalBuildingClipped = areaTotalBuildingClipped / (1000 * 1000); //m^2 → km^2
+  
+  console.log( "約 " + areaTotalBuildingClipped + " km^2");
+  console.log( "デバッグ　約 " + resultIntersection .features.length + " 軒" );  
+  
+  
+  //軒数（建物Centroidをバッファでクリップ→点数測定）
+  var resultWithinPolygon = turf.pointsWithinPolygon( targetsPointBuildingCollection , bufferClipPointWithinBbox );
+  console.log( resultWithinPolygon );
+  
+  console.log( "約 " + resultWithinPolygon.features.length + " 軒" );  
+  
+  
+  if (bufferClipPoint !== null) {
+
+    //bbox
+    map.getSource('bbox').setData(
+      bbox_poly
+    );
+    map.addLayer({
+      id: 'bbox',
+      type: 'line',
+      source: 'bbox',
+      layout: {},
+      paint: {
+        'line-color': '#FF0000'
+      }
+    }, 'gsibv-vectortile-layer-2814');
+
+   //buffer
+    map.getSource('buffer-target').setData(
+      bufferClipPointWithinBbox
+    );
+    
+    map.addLayer({
+      id: 'buffer-target',
+      type: 'fill',
+      source: 'buffer-target',
+      paint: {
+        'fill-color': '#FF0000',
+        'fill-opacity': 0.3
+      }
+    }, 'gsibv-vectortile-layer-2254');
+
+   //clipped building
+    map.getSource('building-target').setData(
+      resultIntersection
+    );
+    
+    map.addLayer({
+      id: 'building-target',
+      type: 'fill',
+      source: 'building-target',
+      paint: {
+        'fill-color': '#FF0000',
+        'fill-opacity': 0.3
+      }
+    }, 'gsibv-vectortile-layer-2814');
+
+    //centroid points 
+    map.getSource('centroid-target').setData(
+      resultWithinPolygon
+    );
+    map.addLayer({
+      id: 'centroid-target',
+      type: 'symbol',
+      source: 'centroid-target',
+      layout: {
+        "icon-image":"水深-20",
+        "icon-size": 0.5,
+        "icon-allow-overlap": true
+      },
+      paint: {
+      }
+    }, 'gsibv-vectortile-layer-2816');
+
+  }else{
+    console.log("error?")
+  }  
+  
+});
+
+
+</script>
+ 
+</body>
+</html>
