@@ -300,13 +300,14 @@ map.on('click', function(e) {
     }
     
     //自己交差のチェック
-    
+    /*
     var kinks = turf.kinks(eachBuildingPoly);
     if(kinks.features.length > 0){
       console.log("kinks -----------------------" + i);
       console.log(kinks);
-      eachBuildingPoly <- unkinkPolygon(kinks)
+      eachBuildingPoly = turf.unkinkPolygon(kinks)
     }
+    */
     
     //Clipされるべき地物を数える。
     /*
