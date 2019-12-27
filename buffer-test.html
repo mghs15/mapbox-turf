@@ -55,7 +55,7 @@ map.on('load', function(e) {
     'source-layer': 'building',
     filter: [ 
       "all",
-      ["==","$type", "Polygon"]
+      ["==", "$type", "Polygon"]
     ],
     paint: {
       'fill-opacity': 0,
@@ -285,6 +285,9 @@ map.on('click', function(e) {
   var debug_count = 0;
   var debug_countp = 0;
   var debug_countm = 0;
+  var debug_cross = 0;
+  var debug_contain = 0;
+  var debug_overlap = 0;
   for(var i in targetsPolyBuildingCollection.features ){
     if( targetsPolyBuildingCollection.features[i].geometry.type == "Polygon" ){
           var eachBuildingPoly = turf.polygon( targetsPolyBuildingCollection.features[i].geometry.coordinates, targetsPolyBuildingCollection.features[i].properties  );
@@ -297,14 +300,27 @@ map.on('click', function(e) {
     }
     
     //自己交差のチェック
-    /*
+    
     var kinks = turf.kinks(eachBuildingPoly);
     if(kinks.features.length > 0){
       console.log("kinks -----------------------" + i);
       console.log(kinks);
-      continue;
+      eachBuildingPoly <- unkinkPolygon(kinks)
+    }
+    
+    //Clipされるべき地物を数える。
+    /*
+    if(turf.booleanContains(bufferClipPointWithinBbox , eachBuildingPoly)){
+      debug_contain = debug_contain + 1;
+    }
+    if(turf.booleanCrosses(bufferClipPointWithinBbox , eachBuildingPoly)){
+      debug_cross = debug_cross + 1;
+    }
+    if(turf.booleanOverlap(bufferClipPointWithinBbox , eachBuildingPoly)){
+      debug_overlap = debug_overlap + 1;
     }
     */
+    
     
     //intersect
     var eachIntersection = turf.intersect( eachBuildingPoly , bufferClipPointWithinBbox );
@@ -318,9 +334,11 @@ map.on('click', function(e) {
     }
   }
   
+  var debug_crosscontain = debug_contain + debug_cross;
   console.log( "デバッグ3　約 " + targetsPolyBuildingCollection.features.length + " 軒" );  
   console.log( "デバッグ2　約 " + debug_count + " 軒"  + " Polygon " +  debug_countp + " MultiPolygon " +  debug_countm );  
-  
+  console.log( "デバッグ1.8　合計約 " + debug_crosscontain + " 軒"  + " 内包 " +  debug_contain + " 交差 " +  debug_cross );  
+  console.log( "デバッグ1.6　オーバーラップ　約 " + debug_overlap );  
   
   resultIntersection = turf.featureCollection( resultIntersection );
   console.log( "バッファでクリップした建物ポリゴン featureCollection");
