@@ -158,9 +158,11 @@ map.on('click', function(e) {
   console.log("クリックポイント");
   console.log(e.lngLat);
   
-  var bufferClipPoint = turf.buffer(clickPoints, 1);
+  var cellSize = 20000 / Math.pow( 2, map.getZoom() ); // km
+  var bufferClipPoint = turf.buffer(clickPoints, cellSize);
   var bufferClipPointWithinBbox = turf.intersect( bufferClipPoint , bbox_poly ); //最終的にこれでクリップする
   
+  console.log("バッファサイズ " + cellSize + " km");
 
   
   
@@ -193,7 +195,7 @@ map.on('click', function(e) {
   
   //バッファー
   //var cellSize = 5000 / Math.pow( 2, map.getZoom() );
-  var cellSize = 0.5 / Math.pow( 2, map.getZoom() ); // km
+  var cellSize = 0.1 / Math.pow( 2, map.getZoom() ); // km
   console.log("バッファ");
   var bufferTarget = turf.buffer(targetFeatures, cellSize);
 //  var bufferTargetCollection = turf.featureCollection( bufferTarget );
