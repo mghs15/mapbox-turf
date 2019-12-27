@@ -57,7 +57,7 @@ map.on('click', function(e) {
   }
   
 
-  var features = map.queryRenderedFeatures(e.point, { layers: ['gsibv-vectortile-layer-2522']});
+  var features = map.queryRenderedFeatures(e.point, { layers: ['gsibv-vectortile-layer-2154', 'gsibv-vectortile-layer-2140']});
   if (!features.length) {
     popup.remove();
     return;
@@ -142,7 +142,7 @@ map.on('click', function(e) {
   //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
   //Mapboxの map.queryRenderedFeaturesで得られたものをそのまま載せるだけではダメなようである。
   //http://turfjs.org/docs/#nearestPoint にあるように、turf.point/turf.featureCollectionで変換が必要みたい。
-  var targetsQuery = map.queryRenderedFeatures({ layers: ['gsibv-vectortile-layer-2152'] }); //目的のレイヤIDでレンダリングされる地物を取得
+  var targetsQuery = map.queryRenderedFeatures({ layers: ['gsibv-vectortile-layer-2154', 'gsibv-vectortile-layer-2140'] }); //目的のレイヤIDでレンダリングされる地物を取得
   var targetsList = new Array;
   
   console.log(targetsQuery);
@@ -289,7 +289,16 @@ map.on('click', function(e) {
           ["==", ["get", "cluster"], 7], '#ff8800',
           ["==", ["get", "cluster"], 8], '#fce6a9',
           ["==", ["get", "cluster"], 9], '#a9d4fc',
-          ["==", ["get", "cluster"], 10], '#a9ffa1',
+          ["==", ["get", "cluster"], 10], '#fdc9ff',
+          ["==", ["get", "cluster"], 11], '#c9fff7',
+          ["==", ["get", "cluster"], 12], '#00ffd9',
+          ["==", ["get", "cluster"], 13], '#00946d',
+          ["==", ["get", "cluster"], 14], '#a9ffa1',
+          ["==", ["get", "cluster"], 15], '#489400',
+          ["==", ["get", "cluster"], 16], '#942a00',
+          ["==", ["get", "cluster"], 17], '#940074',
+          ["==", ["get", "cluster"], 18], '#250094',
+          ["==", ["get", "cluster"], 19], '#00947e',
           '#ffc9c9'
         ],
         '#a3a3a3'
