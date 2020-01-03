@@ -22,7 +22,7 @@ The example use case of turf js on mapbox gl js using gsimaps vector according t
   - 標高値を持つポイントから、TINを発生させて表示する。表示の際は、fill-extrusionを用いて、標高値を視覚的に表現。
   - `turf.tin`
 * [centroid.html](https://mghs15.github.io/mapbox-turf/centroid.html)
-  - 建物の各ポリゴンデータから代表点を取得。Turf.jsのクリッピング機能（）を利用し、代表点が表示画面内に入っているか判定し、入っているものとはみ出しているものを分別して表示。
+  - 建物の各ポリゴンデータから代表点を取得。Turf.jsのクリッピング機能（pointsWithinPolygon）を利用し、代表点が表示画面内に入っているか判定し、入っているものとはみ出しているものを分別して表示。
   - なお、`turf.centroid`は頂点で重みづけされているようである。ポリゴンの重心を出すには、`turf.centerOfMass`の方が良いかもしれない。
   - `turf.centroid` `turf.bboxPolygon` `turf.pointsWithinPolygon`
 * [nearestPointOnLine.html](https://mghs15.github.io/mapbox-turf/nearestPointOnLine.html)
@@ -38,6 +38,12 @@ The example use case of turf js on mapbox gl js using gsimaps vector according t
   - また、クエリに`?maxd=距離（km）`を指定することで、指定距離をクラスター内の点間の最大距離とするDbscanのクラスタリングを行うようにしている。
   - 色分けは"case"で20色を指定しているので、クラスター数がそれを超えると、超えた分のクラスターは同じ色（薄い赤色）で表示される。なお、Dbscanのクラスタリングの場合、クラスターに入らなかった点は灰色で表示される。
   - `turf.clustersKmeans` `turf.clustersDbscan`
+* [bboxClip.html](https://mghs15.github.io/mapbox-turf/bboxClip.html)
+  - 地図上の2地点を指定し、bboxを生成し、そのbbox内に含まれるポリゴン（建物）をクリップ（bboxClip）する。
+  - クリップしたポリゴンデータから、ポリゴンの面積を集計。
+  - また、ポリゴンの重心（centerOfMass）を計算し、指定領域（bbox）内に重心が入る（pointsWithinPolygon）ポリゴン数を集計。
+  - `turf.bboxClip` `turf.centerOfMass` `turf.pointsWithinPolygon`
+
 
 ## 注意すべき点など
 * ベクトルタイルの地物はMapbox GL JSのqueryRenderedFeaturesで行う。解析対象は、画面内でレンダリングされたものとなる（タイルに入っているものがすべて解析対象となるわけではない）。
