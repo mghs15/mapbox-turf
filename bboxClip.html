@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8' />
+<title>Display a map</title>
+<meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+<link href='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css' rel='stylesheet' />
+<script src='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js'></script>
+<script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+<script src='./fill-pattern-image.js'></script>
+<style>
+body { margin:0; padding:0; }
+#map {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+}
+#menu {
+    position: absolute;
+    left: 0.5em;
+    top: 0.5em; 
+    padding: 0.2em 0.5em;
+    margin: 0 0;
+    background: #ddeeff;
+    box-shadow: 0px 0px 0px 5px #ddeeff;
+    border: dashed 3px #aaccff;
+    width: 90%;
+    font-family: 'Open Sans', sans-serif;
+}
+#menu #note {
+  font-size: 60%;
+  padding: 0.2em;
+}
+#menu #bbox-guidetext {
+  color: #FF0000;
+}
+</style>
+</head>
+<body>
+ 
+<div id='map'></div>
+
+<div id='menu'>
+  <h1 class="titlebox" style="font-size: 100%; margin: 0 0;">指定領域内の建物の面積と軒数を集計します。</h1>
+  <div id="building-area">建物総面積 --- m<sup>2</sup></div>
+  <div id="building-count">建物総数 --- 軒</div>
+  <div id="note">
+    <a href="https://github.com/gsi-cyberjapan/gsimaps-vector-experiment" target="blank">地理院地図Vector提供実験</a>による
+    ベクトルタイルと<a href="https://turfjs.org/" target="blank">Turf.js</a>を利用してGIS解析を行うデモです。建物ポリゴンの数と面積を集計します。
+    （集計結果はあくまで参考です。
+    ズームレベルごとに、タイルに含まれている建物ポリゴンデータは異なります。
+    建物ポリゴンデータには、総描・省略が含まれている可能性があります。
+    タイル境界の建物は二重に集計されます。）
+  </div>
+  <div id="bbox-guidetext">地図上をクリックして長方形の１点目を指定してください。</div>
+</div>
+
+<script>
+var map = new mapboxgl.Map({
+  container: 'map', // container id
+  hash: true, //add #position on URL
+  style: './style.json', // stylesheet location
+  center: [139.78148, 35.768793], // starting position [lng, lat]
+  zoom: 15, // starting zoom
+  maxZoom: 18
+//  localIdeographFontFamily: "MS Gothic"
+});
+
+//Add Images
+addFillPatternImages();
+
+map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+map.addControl(new mapboxgl.ScaleControl() );
+
+/* turf.js ------------------------------------------------------------------------------------------- */
+
+//設定等
+var targetLayerId = 'gsibv-vectortile-layer-2566'; //郵便局など
+
+//解析対象の建物を1レイヤとして加えておく。
+//"map"のloadが終わったら、読み込まれるようにする。
+map.on('load', function(e) {
+  map.addLayer({
+    id: 'target-building',
+    type: 'fill',
+    source: 'gsibv-vectortile-source-1-4-17',
+    'source-layer': 'building',
+    filter: [ 
+      "all",
+      ["==", "$type", "Polygon"]
+    ],
+    paint: {
+      'fill-opacity': 0,
+      'fill-color': '#FFFFFF'
+    }
+  }, 'gsibv-vectortile-layer-1994');
+});
+
+
+//ポップアップ表示
+var popup = new mapboxgl.Popup();
+
+map.on('click', function(e) {
+  var features = map.queryRenderedFeatures(e.point, { layers: [ 'target-building' ]});
+  
+  if (!features.length) {
+    popup.remove();
+    return;
+  }
+  var feature = features[0];
+  
+  console.log("ポップアップテスト");
+  console.log(feature);
+  
+  /*
+  var popupHTML = "<ul>";
+  for(i in feature.geometry.coordinates[0]){
+    popupHTML = popupHTML + "<li>" + feature.properties.geometry.coordinates[0][i][0] + ", " + feature.properties.geometry.coordinates[0][i][0] + "</li>" ;
+  }
+  popupHTML = popupHTML + "</ul>";
+  */
+
+  popup.setLngLat(feature.geometry.coordinates[0][0])
+    .setHTML(feature.geometry.type)
+    .addTo(map);
+
+  map.getCanvas().style.cursor = features.length ? 'pointer' : '';
+});
+
+
+//事前にデータソースを準備しておく
+//データソースのデータを入れ替えていくほうがよさそう（そうしないと、データソースの重複エラーが出る。）
+map.on('load', function() {
+  //first click point 
+  map.addSource('first-click-point', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+  //bbox(ガイド用)
+  map.addSource('bbox-guide', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+  //bbox
+  map.addSource('bbox', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+  //centroid
+  map.addSource('centroid-target', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+  //all building renderd
+  map.addSource('building-all', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+});
+
+//2回のクリックでbboxを指定してもらうためのパラメータ
+var bboxFlag = false;
+var bboxCorrd = {
+  lng_1: null,
+  lat_1: null,
+  lng_2: null,
+  lat_2: null
+}
+
+
+//Turf.jsで郵便局にバッファを表示する。
+map.on('click', function(e) {
+  if(!bboxFlag){
+    bboxFlag = !bboxFlag;
+    
+    if(map.getLayer('first-click-point')){
+      map.removeLayer('first-click-point');
+    }
+    
+    //クリックポイント
+    var clickPoints = turf.point([ e.lngLat.lng, e.lngLat.lat ]);
+    
+    bboxCorrd.lng_1 = e.lngLat.lng;
+    bboxCorrd.lat_1 = e.lngLat.lat;
+    
+    //クリックポイントの表示
+    map.getSource('first-click-point').setData({
+      type: 'FeatureCollection',
+      features: [
+        clickPoints
+      ]
+    });
+    
+    map.addLayer({
+      id: 'first-click-point',
+      type: 'circle',
+      source: 'first-click-point',
+      paint: {
+        'circle-radius': 10,
+        'circle-color': '#FF7700'
+      }
+    }, 'gsibv-vectortile-layer-2558');
+    
+    document.getElementById('bbox-guidetext').innerHTML = "２点目をクリックして、長方形を完成させてください。";
+    
+  }else{
+    bboxFlag = !bboxFlag;
+
+    //元に戻しておく。
+    if(map.getLayer('first-click-point')){
+      map.removeLayer('first-click-point');
+    }
+    if(map.getLayer('bbox-guide')){
+      map.removeLayer('bbox-guide');
+    }
+    
+    document.getElementById('building-area').innerHTML = "建物総面積 " + "---" + " m<sup>2</sup>";
+    document.getElementById('building-count').innerHTML = "建物総数 " + "---" + " 軒";
+    document.getElementById('bbox-guidetext').innerHTML = "地図上をクリックして長方形の１点目を指定してください。";
+    
+    
+    //以前のデータが残っていたら消す。
+    if(map.getLayer('bbox')){
+      map.removeLayer('bbox');
+    }
+    if(map.getLayer('centroid-target')){
+      map.removeLayer('centroid-target');
+    }
+    if(map.getLayer('building-all')){
+      map.removeLayer('building-all');
+    }
+    
+    
+    //クリックポイント
+    var clickPoints = turf.point([ e.lngLat.lng, e.lngLat.lat ]);
+   
+    bboxCorrd.lng_2 = e.lngLat.lng;
+    bboxCorrd.lat_2 = e.lngLat.lat;
+    
+    
+    //bbox 
+    var ne_lng = Math.max(bboxCorrd.lng_1, bboxCorrd.lng_2);
+    var ne_lat = Math.max(bboxCorrd.lat_1, bboxCorrd.lat_2);
+    var sw_lng = Math.min(bboxCorrd.lng_1, bboxCorrd.lng_2);
+    var sw_lat = Math.min(bboxCorrd.lat_1, bboxCorrd.lat_2);
+    console.log(sw_lng + "," + sw_lat + "," + ne_lng + "," + ne_lat);
+    console.log(bboxCorrd);
+    
+    var options = {
+      bbox: [sw_lng, sw_lat, ne_lng, ne_lat]
+    };
+    
+    var bbox_poly = turf.bboxPolygon(options.bbox);  
+    
+    //bbox初期化
+    bboxCorrd.lng_1 = null;
+    bboxCorrd.lng_1 = null;
+    bboxCorrd.lng_2 = null;
+    bboxCorrd.lng_2 = null;
+    
+    
+    //建物
+    //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
+    //Mapboxの map.queryRenderedFeaturesで得られたものをそのまま載せるだけではダメなようである。
+    //http://turfjs.org/docs/#nearestPoint にあるように、turf.point/turf.featureCollectionで変換が必要みたい。
+    
+    var targetsQueryBuilding = map.queryRenderedFeatures({ layers: [ 'target-building' ] }); //目的レイヤの地物を取得
+    
+    console.log("建物レイヤからの取得クエリ");
+    console.log( targetsQueryBuilding );  
+    
+    var targetsPolyBuilding = new Array; //地物用(ポリゴン)
+    var targetsPointBuilding = new Array; //地物用(ライン)
+    
+    
+    var debug_count = 0;
+    if(targetsQueryBuilding.length > 0){
+      for(var i in targetsQueryBuilding ){
+        if(targetsQueryBuilding[i].geometry.type == "Polygon" || targetsQueryBuilding[i].geometry.type == "MultiPolygon"){
+          //ポリゴンとして      
+          if( targetsQueryBuilding[i].geometry.type == "Polygon" ){
+            var build_poly = turf.polygon( targetsQueryBuilding[i].geometry.coordinates, targetsQueryBuilding[i].properties );
+          }else if( targetsQueryBuilding[i].geometry.type == "MultiPolygon"){
+            var build_poly = turf.multiPolygon( targetsQueryBuilding[i].geometry.coordinates, targetsQueryBuilding[i].properties );
+          }else{
+            continue;
+          }
+          
+          targetsPolyBuilding.push( build_poly );
+          //Centroid Pointsとして
+          var build_point = turf.centerOfMass( build_poly );
+          targetsPointBuilding.push( build_point );
+          
+          debug_count = debug_count + 1;
+        }
+      }
+    }else{
+      return;
+    }
+    
+    console.log( "デバッグ6 poly  約 " + targetsPolyBuilding.length + " 軒" );  
+    console.log( "デバッグ5 point 約 " + targetsPointBuilding.length + " 軒" );  
+    console.log( "デバッグ4　約 " + debug_count + " 軒" );  
+    
+    //建物のポリゴン・CentroidをCollectionに
+    var targetsPolyBuildingCollection = turf.featureCollection(targetsPolyBuilding);
+    console.log("建物のポリゴン targetsPolyBuildingCollection　featureCollection");
+    console.log( targetsPolyBuildingCollection );
+    var targetsPointBuildingCollection = turf.featureCollection(targetsPointBuilding);
+    console.log("建物のCentroid　targetsPointBuildingCollection  featureCollection");
+    console.log( targetsPointBuildingCollection );
+    
+    
+    //bboxclip
+    var targetsPolyBuildingBboxClip = new Array();
+    var areaTotalBuildingBboxClipped = 0; //面積用
+    
+    for(i in targetsPolyBuildingCollection.features ){
+
+      var eachTargetBuildingBboxClip = turf.bboxClip(targetsPolyBuildingCollection.features[i], options.bbox ); //bboxから
+//      console.log(eachTargetBuildingBboxClip);
+      
+      var areaEachPolyBuilding = turf.area( eachTargetBuildingBboxClip );
+      if(areaEachPolyBuilding > 0){ // MultiPolygonで空のものを除くための処理
+        targetsPolyBuildingBboxClip.push( eachTargetBuildingBboxClip );
+        areaTotalBuildingBboxClipped = areaTotalBuildingBboxClipped + areaEachPolyBuilding; //面積用
+      }
+      
+    }
+    var targetsPolyBuildingBboxClipCollection = turf.featureCollection( targetsPolyBuildingBboxClip );
+    console.log("targetsPolyBuildingBboxClipCollection");
+    console.log(targetsPolyBuildingBboxClipCollection);
+    
+    //面積 
+    console.log("総面積　約 " + areaTotalBuildingBboxClipped + " 平方メートル");
+    document.getElementById('building-area').innerHTML = "建物総面積 約 " + Math.floor(areaTotalBuildingBboxClipped) + " m<sup>2</sup>";
+    
+    //軒数（建物Centroidをバッファでクリップ→点数測定）
+    var resultWithinPolygon = turf.pointsWithinPolygon( targetsPointBuildingCollection , bbox_poly ); //bboxから
+    console.log("resultWithinPolygon");
+    console.log( resultWithinPolygon );
+    
+    console.log( "建物数　約 " + resultWithinPolygon.features.length + " 軒" );
+    document.getElementById('building-count').innerHTML = "建物総数 約 " + resultWithinPolygon.features.length + " 軒";
+    
+    
+    //レンダリング
+    if (targetsPolyBuildingBboxClipCollection !== null) {
+
+     //all building
+      map.getSource('building-all').setData(
+        targetsPolyBuildingBboxClipCollection 
+      );
+      
+      map.addLayer({
+        id: 'building-all',
+        type: 'fill',
+        source: 'building-all',
+        paint: {
+          'fill-color': '#FF0000',
+          'fill-opacity': 0.3
+        }
+      }, 'gsibv-vectortile-layer-2814');
+      
+      
+      //bbox
+      map.getSource('bbox').setData(
+        bbox_poly
+      );
+      map.addLayer({
+        id: 'bbox',
+        type: 'line',
+        source: 'bbox',
+        layout: {},
+        paint: {
+          'line-color': '#FF0000'
+        }
+      }, 'gsibv-vectortile-layer-2814');
+
+      //centroid points 
+      map.getSource('centroid-target').setData(
+        resultWithinPolygon
+      );
+      map.addLayer({
+        id: 'centroid-target',
+        type: 'circle',
+        source: 'centroid-target',
+        paint: {
+          'circle-radius': 2,
+          'circle-color': '#0000FF'
+        },
+        layout: {
+        }
+      }, 'gsibv-vectortile-layer-2816');
+
+    }else{
+      console.log("error?")
+    }
+    
+   
+    
+  }
+});
+
+map.on('mousemove', function(e) {
+  if(bboxFlag){
+  
+    if(map.getLayer('bbox-guide')){
+      map.removeLayer('bbox-guide');
+    }
+    
+    //クリックポイント
+    var clickPoints = turf.point([ e.lngLat.lng, e.lngLat.lat ]);
+    
+    //bbox 
+    var ne_lng_guide = Math.max(bboxCorrd.lng_1, e.lngLat.lng);
+    var ne_lat_guide = Math.max(bboxCorrd.lat_1, e.lngLat.lat);
+    var sw_lng_guide = Math.min(bboxCorrd.lng_1, e.lngLat.lng);
+    var sw_lat_guide = Math.min(bboxCorrd.lat_1, e.lngLat.lat);
+    
+    var bbox_poly_guide = turf.bboxPolygon([sw_lng_guide, sw_lat_guide, ne_lng_guide, ne_lat_guide]);  
+    
+    //レンダリング
+    if (bbox_poly_guide !== null) {
+      //bbox
+      map.getSource('bbox-guide').setData(
+        bbox_poly_guide
+      );
+      map.addLayer({
+        id: 'bbox-guide',
+        type: 'line',
+        source: 'bbox-guide',
+        layout: {},
+        paint: {
+          'line-color': '#FF7700',
+          'line-width': 2,
+          'line-dasharray': [5,5]
+        }
+      }, 'gsibv-vectortile-layer-2814');
+    }
+    
+  }
+});
+
+
+
+</script>
+ 
+</body>
+</html>
