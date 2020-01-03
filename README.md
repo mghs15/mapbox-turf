@@ -49,6 +49,7 @@ The example use case of turf js on mapbox gl js using gsimaps vector according t
 * ベクトルタイルの地物はMapbox GL JSのqueryRenderedFeaturesで行う。解析対象は、画面内でレンダリングされたものとなる（タイルに入っているものがすべて解析対象となるわけではない）。
 * Mapbox GL JSのqueryRenderedFeaturesをそのまま利用すると、Turf.jsの処理でエラーが生じたので、Turf.jsのturf.point、turf.featureCollection等で、データの形をfeatureやfertureCollection等に整えてあげる必要があるようだ。
 * データを整えたり、属性値の加工を行うため、頻繁にFor文を回している。
+* `turf.intersect`でポリゴンでポリゴンをクリップしようと試みたが、クリップがなされない（＝ポリゴン同士の共有部分なしと判定されてしまう）場合がある。`turf.booleanContains`や`turf.booleanOverlap`で事前に内包・オーバーラップ判定が正となっても、`turf.intersect`では処理されない。原因はわからない。
 
 ## 参考文献
 * Mapboxによるチュートリアル（Analyze data with Turf.js and Mapbox GL JS） <br> https://docs.mapbox.com/help/tutorials/analysis-with-turf/
