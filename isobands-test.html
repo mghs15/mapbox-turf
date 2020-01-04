@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8' />
+<title>Display a map</title>
+<meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+<link href='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css' rel='stylesheet' />
+<script src='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js'></script>
+<script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+<!--
+<script src='https://api.mapbox.com/mapbox.js/plugins/turf/v3.0.11/turf.min.js'></script>
+-->
+<script src='./fill-pattern-image.js'></script>
+<style>
+body { margin:0; padding:0; }
+#map {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+}
+</style>
+</head>
+<body>
+ 
+<div id='map'></div>
+
+
+<script>
+var map = new mapboxgl.Map({
+  container: 'map', // container id
+  hash: true, //add #position on URL
+  style: './style.json', // stylesheet location
+  center: [139.78148, 35.768793], // starting position [lng, lat]
+  zoom: 15, // starting zoom
+  maxZoom: 18,
+  localIdeographFontFamily: "MS Gothic"
+});
+
+//Add Images
+addFillPatternImages();
+
+map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+map.addControl(new mapboxgl.ScaleControl() );
+
+/* turf.js ------------------------------------------------------------------------------------------- */
+
+//郵便局 "id":"gsibv-vectortile-layer-2566"
+
+//解析対象の等高線を1レイヤとして加えておく。
+//"map"のloadが終わったら、読み込まれるようにする。
+map.on('load', function(e) {
+  map.addLayer({
+    id: 'target-contour',
+    type: 'line',
+    source: 'gsibv-vectortile-source-1-4-17',
+    'source-layer': 'contour',
+    filter: [ 
+      "all",
+      ["==", "$type", "LineString"]
+    ],
+    paint: {
+      'line-opacity': 0,
+      'line-color': '#FFFFFF'
+    }
+  }, 'gsibv-vectortile-layer-1994');
+});
+
+
+//ポップアップ表示
+/*
+var popup = new mapboxgl.Popup();
+
+map.on('click', function(e) {
+  
+  if(map.getLayer('result-target')){
+    map.removeLayer('result-target');
+  }
+  
+
+  var cp_layer = ['gsibv-vectortile-layer-2538h', 'gsibv-vectortile-layer-2538v', 'gsibv-vectortile-layer-2539',
+                  'gsibv-vectortile-layer-2588', 'gsibv-vectortile-layer-2589', 'gsibv-vectortile-layer-2590',
+                  'gsibv-vectortile-layer-2591', 'gsibv-vectortile-layer-2814', 'gsibv-vectortile-layer-2816',
+                  'target-contour'];
+
+  
+  var features = map.queryRenderedFeatures(e.point, { layers: cp_layer});
+  if (!features.length) {
+    popup.remove();
+    return;
+  }
+  var feature = features[0];
+
+  popup.setLngLat(feature.geometry.coordinates)
+    .setHTML(feature.properties.ftCode)
+    .addTo(map);
+
+  map.getCanvas().style.cursor = features.length ? 'pointer' : '';
+});
+*/
+
+//Turf.jsで標高点・三角点・水準点・電子基準点からisobandsを作る。
+
+map.on('load', function() {
+  map.addSource('bbox', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+  map.addSource('poly-target', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+  map.addSource('point-target', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  });
+});
+
+
+map.on('click', function(e) {
+  
+  if(map.getLayer('bbox')){
+    map.removeLayer('bbox');
+  }
+  if(map.getLayer('poly-target')){
+    map.removeLayer('poly-target');
+  }
+  if(map.getLayer('point-target')){
+    map.removeLayer('point-target');
+  }
+  
+  var cp_layer = ['gsibv-vectortile-layer-2538h', 'gsibv-vectortile-layer-2538v', 'gsibv-vectortile-layer-2539', 'gsibv-vectortile-layer-2540', //標高-火山を含む
+                  'gsibv-vectortile-layer-2588', 'gsibv-vectortile-layer-2589', 'gsibv-vectortile-layer-2590',
+                  'gsibv-vectortile-layer-2591', 'gsibv-vectortile-layer-2816', 'target-contour'];
+  
+  
+  //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
+  //Mapboxの map.queryRenderedFeaturesで得られたものをそのまま載せるだけではダメなようである。
+  //http://turfjs.org/docs/#nearestPoint にあるように、turf.point/turf.featureCollectionで変換が必要みたい。
+  var targetsQuery = map.queryRenderedFeatures({ layers: cp_layer }); //目的レイヤの地物を取得
+  var targetsList = new Array;
+  var targetsListCp = new Array;
+  
+  console.log(targetsQuery);
+  
+  if(targetsQuery.length > 0){
+    for(var i in targetsQuery ){
+      if(targetsQuery[i].geometry.type === "LineString"){
+        targetsList.push( turf.lineString( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) );
+        console.log("linestring");
+      }
+      if(targetsQuery[i].geometry.type === "MultiLineString"){
+        targetsList.push( turf.multiLineString( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) );
+        console.log("multilinestring");
+      }
+      if(targetsQuery[i].geometry.type === "Point"){
+        targetsList.push( turf.point( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) );
+        targetsListCp.push( turf.point( targetsQuery[i].geometry.coordinates, targetsQuery[i].properties ) );
+        console.log("point");
+      }
+    }
+  }else{
+    return;
+  }
+  
+  //pointデータのみ抽出（地図への数値表示用）
+  var targetFeaturesCp = turf.featureCollection(targetsListCp);
+  
+  //turf.explode
+  //等高線（id='target-contour'）のラインデータをポイントデータに分解する。
+  var targetFeatures_pre = turf.featureCollection(targetsList);
+  var targetFeatures = turf.explode(targetFeatures_pre);
+  console.log("targetFeatures (explode利用)");
+  console.log(targetFeatures);
+  
+  
+  //bbox
+  var map_bbox = map.getBounds();
+  
+  var options = {
+    bbox: [map_bbox._sw.lng, map_bbox._sw.lat, map_bbox._ne.lng, map_bbox._ne.lat]
+  };
+  
+  var bbox_poly = turf.bboxPolygon(options.bbox);  
+  
+  
+  //interporate + isobounds
+  //標高値（alti）で内挿
+  var breakMax = 0;
+  var breakMin = 4000;
+  for(var i in targetFeatures.features){
+    breakMax = Math.max(breakMax, targetFeatures.features[i].properties.alti);
+    breakMin = Math.min(breakMin, targetFeatures.features[i].properties.alti);
+  }
+  
+  var breakLength = 20;
+  var breakValue = (breakMax - breakMin)/breakLength;
+  
+  var breaks = new Array();
+  for(var i = 0; i < breakLength + 1; i++){
+    breaks.push( breakMin + breakValue * i );
+  }
+  
+  //var breaks = [0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 3500];  
+  /*
+  var breaks = [breakMin, 
+                breakMin + breakValue * 2, 
+                breakMin + breakValue * 3, 
+                breakMin + breakValue * 4, 
+                breakMin + breakValue * 5, 
+                breakMin + breakValue * 6, 
+                breakMin + breakValue * 7, 
+                breakMin + breakValue * 8, 
+                breakMin + breakValue * 9, 
+                breakMax];
+  */
+  
+  var cellSize = 1000 / Math.pow( 2, map.getZoom() ); // the distance across each grid point
+  
+  var options = {gridType: 'points', property: 'alti', units: 'kilometers'};
+  var interpolatePointsGrid = turf.interpolate(targetFeatures, cellSize, options);
+  
+  var polysTarget = turf.isobands(interpolatePointsGrid, breaks, {zProperty: 'alti'});
+  
+  for(i in polysTarget.features ){
+    //isoboundsの成果品の標高値を加工
+    var altiRange = polysTarget.features[i].properties.alti;
+    var altiRangeArray = altiRange.split("-");
+    polysTarget.features[i].properties.base = parseInt( altiRangeArray[0] ); //標高帯の下限値
+    polysTarget.features[i].properties.alti = parseInt( altiRangeArray[1] ); //標高帯の上限値
+    polysTarget.features[i].properties.relativeAlti = parseInt( altiRangeArray[0] - breakMin ); // 当該範囲内の標高の最小値を引いて、当該範囲内の相対値とする。
+    //isoboundsの成果品の標高値に応じてrgb値を設定
+    var color1 = Math.floor( 255 * ( altiRangeArray[0] - breakMin) / (breakMax - breakMin) );
+    var color2 = 255 - Math.floor( 255 * ( altiRangeArray[0] - breakMin) / (breakMax - breakMin) );
+    var rgbaText = 'rgba(' + color1 + ', ' + color2 + ', ' + 255 + ', 1)';
+    //var rgbaText = 'rgba(' + color1 + ', ' + color2 + ', ' + color2 + ', 1)';
+    polysTarget.features[i].properties.rgba =  rgbaText;
+  }
+  
+  console.log( polysTarget );
+  
+  
+  if (polysTarget !== null) {
+
+    //bbox
+    map.getSource('bbox').setData(
+      bbox_poly
+    );
+    map.addLayer({
+      id: 'bbox',
+      type: 'line',
+      source: 'bbox',
+      layout: {},
+      paint: {
+        'line-color': '#FF0000'
+      }
+    }, 'gsibv-vectortile-layer-2814');
+
+
+    //isoline
+    map.getSource('poly-target').setData(
+      polysTarget 
+    );
+    map.addLayer({
+      id: 'poly-target',
+      type: 'fill-extrusion',
+      source: 'poly-target',
+      layout: {},
+      paint: {
+        'fill-extrusion-opacity': 0.8,
+        'fill-extrusion-color': ["get", "rgba"],
+        'fill-extrusion-height': [
+          "*",
+          2,
+          ["get", "base"]
+        ],
+        'fill-extrusion-vertical-gradient': true
+      }
+    }, 'gsibv-vectortile-layer-2814');
+
+    //cp points as circle
+    map.getSource('point-target').setData(
+      targetFeaturesCp
+    );
+    
+    map.addLayer({
+      id: 'point-target',
+      type: 'symbol',
+      source: 'point-target',
+      layout: {
+        'text-field': [
+          "format",
+          ["get", "alti"], { "font-scale": 1 },
+          "\n",
+          "↓"
+        ],
+        'text-anchor': 'bottom',
+        'text-justify': 'center',
+        'text-font': ["NotoSansCJKjp-Regular"],
+        'text-allow-overlap': true
+      },
+      paint: {
+      }
+    }, 'gsibv-vectortile-layer-2814');
+    
+    console.log("使用した既知点数: " + targetFeatures.features.length);
+    console.log("補間点の間隔: " + cellSize + " km");
+    console.log("既知点の標高の最小-最大値: " + breakMin + " - " + breakMax);
+    console.log("Finished!");
+    
+  }else{
+    console.log("error?")
+  }
+});
+
+
+
+</script>
+ 
+</body>
+</html>
