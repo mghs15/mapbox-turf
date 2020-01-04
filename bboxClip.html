@@ -99,6 +99,7 @@ map.on('load', function(e) {
 
 
 //ポップアップ表示
+/*
 var popup = new mapboxgl.Popup();
 
 map.on('click', function(e) {
@@ -113,13 +114,13 @@ map.on('click', function(e) {
   console.log("ポップアップテスト");
   console.log(feature);
   
-  /*
-  var popupHTML = "<ul>";
-  for(i in feature.geometry.coordinates[0]){
-    popupHTML = popupHTML + "<li>" + feature.properties.geometry.coordinates[0][i][0] + ", " + feature.properties.geometry.coordinates[0][i][0] + "</li>" ;
-  }
-  popupHTML = popupHTML + "</ul>";
-  */
+  
+//  var popupHTML = "<ul>";
+//  for(i in feature.geometry.coordinates[0]){
+//    popupHTML = popupHTML + "<li>" + feature.properties.geometry.coordinates[0][i][0] + ", " + feature.properties.geometry.coordinates[0][i][0] + "</li>" ;
+//  }
+//  popupHTML = popupHTML + "</ul>";
+  
 
   popup.setLngLat(feature.geometry.coordinates[0][0])
     .setHTML(feature.geometry.type)
@@ -127,6 +128,7 @@ map.on('click', function(e) {
 
   map.getCanvas().style.cursor = features.length ? 'pointer' : '';
 });
+*/
 
 
 //事前にデータソースを準備しておく
@@ -335,14 +337,33 @@ map.on('click', function(e) {
 
       var eachTargetBuildingBboxClip = turf.bboxClip(targetsPolyBuildingCollection.features[i], options.bbox ); //bboxから
 //      console.log(eachTargetBuildingBboxClip);
-      
+      /*
       var areaEachPolyBuilding = turf.area( eachTargetBuildingBboxClip );
       if(areaEachPolyBuilding > 0){ // MultiPolygonで空のものを除くための処理
         targetsPolyBuildingBboxClip.push( eachTargetBuildingBboxClip );
         areaTotalBuildingBboxClipped = areaTotalBuildingBboxClipped + areaEachPolyBuilding; //面積用
       }
+      */
+      
+      var areaEachPolyBuilding = turf.area( eachTargetBuildingBboxClip );
+      if(areaEachPolyBuilding > 0){ // MultiPolygonで空のものを除くための処理
+        if( eachTargetBuildingBboxClip.geometry.type === 'MultiPolygon' ){
+        //multipolygonで空の配列が混入しているのを除く
+          for(i in eachTargetBuildingBboxClip.geometry.coordinates){
+            if( eachTargetBuildingBboxClip.geometry.coordinates[i].length > 0 ){
+              //何もしない
+            }else{
+              eachTargetBuildingBboxClip.geometry.coordinates.splice(i,i);
+            }
+          }
+        }
+        targetsPolyBuildingBboxClip.push( eachTargetBuildingBboxClip );
+        areaTotalBuildingBboxClipped = areaTotalBuildingBboxClipped + areaEachPolyBuilding; //面積用
+      }
+      
       
     }
+    
     var targetsPolyBuildingBboxClipCollection = turf.featureCollection( targetsPolyBuildingBboxClip );
     console.log("targetsPolyBuildingBboxClipCollection");
     console.log(targetsPolyBuildingBboxClipCollection);
