@@ -7,10 +7,6 @@
 <link href='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css' rel='stylesheet' />
 <script src='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js'></script>
 <script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
-<!--
-<script src='https://api.mapbox.com/mapbox.js/plugins/turf/v3.0.11/turf.min.js'></script>
--->
-<script src='./fill-pattern-image.js'></script>
 <style>
 body { margin:0; padding:0; }
 #map {
@@ -37,15 +33,30 @@ var map = new mapboxgl.Map({
   localIdeographFontFamily: "MS Gothic"
 });
 
-//Add Images
-addFillPatternImages();
 
 map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 map.addControl(new mapboxgl.ScaleControl() );
 
 /* turf.js ------------------------------------------------------------------------------------------- */
 
-//郵便局 "id":"gsibv-vectortile-layer-2566"
+//"map"のloadが終わったら、読み込まれるようにする。
+map.on('load', function(e) {
+  map.addLayer({
+    id: 'target-layers',
+    type: 'circle',
+    source: 'gsibv-vectortile-source-1-4-16',
+    'source-layer': 'symbol',
+    filter: [ //フィルタリング
+      "any",
+        ['has', 'alti']
+    ],
+    paint: {
+      'circle-radius': 15,
+      'circle-opacity': 0,
+      'circle-color': '#FFFFFF'
+    }
+  });
+});
 
 //ポップアップ表示
 var popup = new mapboxgl.Popup();
@@ -57,9 +68,7 @@ map.on('mouseover', function(e) {
   }
   
 
-  var cp_layer = ['gsibv-vectortile-layer-2538h', 'gsibv-vectortile-layer-2538v', 'gsibv-vectortile-layer-2539',
-                  'gsibv-vectortile-layer-2588', 'gsibv-vectortile-layer-2589', 'gsibv-vectortile-layer-2590',
-                  'gsibv-vectortile-layer-2591', 'gsibv-vectortile-layer-2814', 'gsibv-vectortile-layer-2816']
+  var cp_layer = ['target-layers']
   
   var features = map.queryRenderedFeatures(e.point, { layers: cp_layer});
   if (!features.length) {
@@ -115,9 +124,7 @@ map.on('click', function(e) {
     map.removeLayer('point-target');
   }
   
-  var cp_layer = ['gsibv-vectortile-layer-2538h', 'gsibv-vectortile-layer-2538v', 'gsibv-vectortile-layer-2539', 'gsibv-vectortile-layer-2540', //標高-火山を含む
-                  'gsibv-vectortile-layer-2588', 'gsibv-vectortile-layer-2589', 'gsibv-vectortile-layer-2590',
-                  'gsibv-vectortile-layer-2591', 'gsibv-vectortile-layer-2816']
+  var cp_layer = ['target-layers']
   
   //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
   //Mapboxの map.queryRenderedFeaturesで得られたものをそのまま載せるだけではダメなようである。
@@ -242,7 +249,7 @@ map.on('click', function(e) {
       paint: {
         'line-color': '#FF0000'
       }
-    }, 'gsibv-vectortile-layer-2814');
+    });
 
 
     //isoline
@@ -264,7 +271,7 @@ map.on('click', function(e) {
         ],
         'fill-extrusion-vertical-gradient': true
       }
-    }, 'gsibv-vectortile-layer-2814');
+    });
 
     //cp points as circle
     map.getSource('point-target').setData(
@@ -289,7 +296,7 @@ map.on('click', function(e) {
       },
       paint: {
       }
-    }, 'gsibv-vectortile-layer-2814');
+    });
     
     console.log("使用した既知点数: " + targetFeatures.features.length);
     if(cellSize){

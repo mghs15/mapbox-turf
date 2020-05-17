@@ -7,7 +7,6 @@
 <link href='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css' rel='stylesheet' />
 <script src='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js'></script>
 <script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
-<script src='./fill-pattern-image.js'></script>
 <style>
 body { margin:0; padding:0; }
 #map {
@@ -67,24 +66,21 @@ var map = new mapboxgl.Map({
 //  localIdeographFontFamily: "MS Gothic"
 });
 
-//Add Images
-addFillPatternImages();
-
 map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 map.addControl(new mapboxgl.ScaleControl() );
 
 /* turf.js ------------------------------------------------------------------------------------------- */
 
 //設定等
-var targetLayerId = 'gsibv-vectortile-layer-2566'; //郵便局など
+var targetLayerId = ''; //郵便局など
 
 //解析対象の建物を1レイヤとして加えておく。
 //"map"のloadが終わったら、読み込まれるようにする。
 map.on('load', function(e) {
   map.addLayer({
-    id: 'target-building',
+    id: 'target-layers',
     type: 'fill',
-    source: 'gsibv-vectortile-source-1-4-17',
+    source: 'gsibv-vectortile-source-1-4-16',
     'source-layer': 'building',
     filter: [ 
       "all",
@@ -94,7 +90,7 @@ map.on('load', function(e) {
       'fill-opacity': 0,
       'fill-color': '#FFFFFF'
     }
-  }, 'gsibv-vectortile-layer-1994');
+  });
 });
 
 
@@ -103,7 +99,7 @@ map.on('load', function(e) {
 var popup = new mapboxgl.Popup();
 
 map.on('click', function(e) {
-  var features = map.queryRenderedFeatures(e.point, { layers: [ 'target-building' ]});
+  var features = map.queryRenderedFeatures(e.point, { layers: [ 'target-layers' ]});
   
   if (!features.length) {
     popup.remove();
@@ -217,7 +213,7 @@ map.on('click', function(e) {
         'circle-radius': 10,
         'circle-color': '#FF7700'
       }
-    }, 'gsibv-vectortile-layer-2558');
+    });
     
     document.getElementById('bbox-guidetext').innerHTML = "２点目をクリックして、長方形を完成させてください。";
     
@@ -282,7 +278,7 @@ map.on('click', function(e) {
     //Mapboxの map.queryRenderedFeaturesで得られたものをそのまま載せるだけではダメなようである。
     //http://turfjs.org/docs/#nearestPoint にあるように、turf.point/turf.featureCollectionで変換が必要みたい。
     
-    var targetsQueryBuilding = map.queryRenderedFeatures({ layers: [ 'target-building' ] }); //目的レイヤの地物を取得
+    var targetsQueryBuilding = map.queryRenderedFeatures({ layers: [ 'target-layers' ] }); //目的レイヤの地物を取得
     
     console.log("建物レイヤからの取得クエリ");
     console.log( targetsQueryBuilding );  
@@ -397,7 +393,7 @@ map.on('click', function(e) {
           'fill-color': '#FF0000',
           'fill-opacity': 0.3
         }
-      }, 'gsibv-vectortile-layer-2814');
+      });
       
       
       //bbox
@@ -412,7 +408,7 @@ map.on('click', function(e) {
         paint: {
           'line-color': '#FF0000'
         }
-      }, 'gsibv-vectortile-layer-2814');
+      });
 
       //centroid points 
       map.getSource('centroid-target').setData(
@@ -428,7 +424,7 @@ map.on('click', function(e) {
         },
         layout: {
         }
-      }, 'gsibv-vectortile-layer-2816');
+      });
 
     }else{
       console.log("error?")
@@ -473,7 +469,7 @@ map.on('mousemove', function(e) {
           'line-width': 2,
           'line-dasharray': [5,5]
         }
-      }, 'gsibv-vectortile-layer-2814');
+      });
     }
     
   }

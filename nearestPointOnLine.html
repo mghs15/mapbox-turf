@@ -7,7 +7,6 @@
 <link href='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css' rel='stylesheet' />
 <script src='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js'></script>
 <script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
-<script src='./fill-pattern-image.js'></script>
 <style>
 body { margin:0; padding:0; }
 #map {
@@ -34,9 +33,6 @@ var map = new mapboxgl.Map({
 //  localIdeographFontFamily: "MS Gothic"
 });
 
-//Add Images
-addFillPatternImages();
-
 map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 map.addControl(new mapboxgl.ScaleControl() );
 
@@ -48,13 +44,13 @@ map.on('load', function(e) {
   map.addLayer({
     id: 'target-way',
     type: 'line',
-    source: 'gsibv-vectortile-source-1-4-17',
+    source: 'gsibv-vectortile-source-1-4-16',
     'source-layer': 'railway',
     paint: {
       'line-opacity': 0,
       'line-color': '#FFFFFF'
     }
-  }, 'gsibv-vectortile-layer-1994');
+  });
 });
 
 //ポップアップ表示
@@ -169,7 +165,7 @@ map.on('click', function(e) {
           '#FF0000'
         ]
       }
-    }, 'gsibv-vectortile-layer-2558');
+    });
   }else{
     console.log("error?")
   }  

@@ -7,7 +7,6 @@
 <link href='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css' rel='stylesheet' />
 <script src='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js'></script>
 <script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
-<script src='./fill-pattern-image.js'></script>
 <style>
 body { margin:0; padding:0; }
 #map {
@@ -34,21 +33,39 @@ var map = new mapboxgl.Map({
 //  localIdeographFontFamily: "MS Gothic"
 });
 
-//Add Images
-addFillPatternImages();
 
 map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 map.addControl(new mapboxgl.ScaleControl() );
 
 /* turf.js ------------------------------------------------------------------------------------------- */
 
-//郵便局 "id":"gsibv-vectortile-layer-2566"
+//"map"のloadが終わったら、読み込まれるようにする。
+map.on('load', function(e) {
+  map.addLayer({
+    id: 'target-school',
+    type: 'circle',
+    source: 'gsibv-vectortile-source-1-4-16',
+    'source-layer': 'symbol',
+    filter: [ //フィルタリング
+      "any",
+        ['==', ['get', 'ftCode'], 3212],
+        ['==', ['get', 'ftCode'], 3213],
+        ['==', ['get', 'ftCode'], 3214]
+    ],
+    paint: {
+      'circle-radius': 15,
+      'circle-opacity': 0,
+      'circle-color': '#FFFFFF'
+    }
+  });
+});
+
 
 //ポップアップ表示
 var popup = new mapboxgl.Popup();
 
 map.on('click', function(e) {
-  var features = map.queryRenderedFeatures(e.point, { layers: ['gsibv-vectortile-layer-2558','gsibv-vectortile-layer-2559','gsibv-vectortile-layer-2560']});
+  var features = map.queryRenderedFeatures(e.point, { layers: ['target-school'] });
   if (!features.length) {
     popup.remove();
     return;
@@ -99,7 +116,7 @@ map.on('click', function(e) {
   //ベクトルタイルのスタイルIDで地物を取得（画面内にレンダリングされたもののみ）。
   //Mapboxの map.queryRenderedFeaturesで得られたものをそのまま載せるだけではダメなようである。
   //http://turfjs.org/docs/#nearestPoint にあるように、turf.point/turf.featureCollectionで変換が必要みたい。
-  var targetsQuery = map.queryRenderedFeatures({ layers: ['gsibv-vectortile-layer-2558','gsibv-vectortile-layer-2559','gsibv-vectortile-layer-2560'] }); //郵便局を取得
+  var targetsQuery = map.queryRenderedFeatures({ layers: ['target-school'] });
   var targetsList = new Array;
   
 //  console.log( targetsQuery );
@@ -140,7 +157,7 @@ map.on('click', function(e) {
           '#CCCCCC'
         ]
       }
-    }, 'gsibv-vectortile-layer-2558');
+    });
   }else{
     console.log("error?")
   }
@@ -170,7 +187,7 @@ map.on('click', function(e) {
         'fill-color': '#FFDDDD',
         'fill-outline-color': '#FF0000'
       }
-    }, 'gsibv-vectortile-layer-2558');
+    });
   }else{
     console.log("error?")
   }
